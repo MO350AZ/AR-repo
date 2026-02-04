@@ -14,11 +14,17 @@ jobs:
       - name: Install tools
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Clone repo branch
+      - name: Clone Keiyoushi repo branch
         run: |
-          rm -rf repo upstream
-          git clone --depth=1 --branch repo https://github.com/keiyoushi/extensions.git upstream
-          mv upstream repo
+          rm -rf keiyoushi repo
+          git clone --depth=1 --branch repo https://github.com/keiyoushi/extensions.git keiyoushi
+          ls -la keiyoushi
+          mv keiyoushi repo
+
+      - name: Verify repo contents
+        run: |
+          ls -la repo
+          ls -la repo/apk | head -n 5
 
       - name: Remove NSFW from indexes
         run: |
