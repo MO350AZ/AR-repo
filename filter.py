@@ -12,7 +12,6 @@ filtered = {
 }
 
 for pkg in data.get("packages", []):
-    # Keep everything except NSFW
     if not pkg.get("nsfw", False):
         filtered["packages"].append(pkg)
 
