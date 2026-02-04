@@ -1,19 +1,24 @@
 import json
-import requests
+import urllib.request
 
 SOURCE_URL = "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json"
 
-data = requests.get(SOURCE_URL, timeout=30).json()
+with urllib.request.urlopen(SOURCE_URL, timeout=30) as response:
+    data = json.loads(response.read().decode("utf-8"))
+
+# data هنا List مش Dict
+filtered_packages = []
+
+for pkg in data:
+    # شيل الإباحي فقط
+    if not pkg.get("nsfw", False):
+        filtered_packages.append(pkg)
 
 filtered = {
     "name": "AR Safe Extensions (Mirror of Keiyoushi)",
     "source": SOURCE_URL,
-    "packages": []
+    "packages": filtered_packages
 }
-
-for pkg in data.get("packages", []):
-    if not pkg.get("nsfw", False):
-        filtered["packages"].append(pkg)
 
 with open("index.min.json", "w", encoding="utf-8") as f:
     json.dump(filtered, f, ensure_ascii=False, separators=(",", ":"))
