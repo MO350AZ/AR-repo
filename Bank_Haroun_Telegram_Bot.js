@@ -1,35 +1,21 @@
 /**
  * ============================================================================
  * 🏦 بوت تيليجرام لفحص وإصلاح ملفات حفظ بنك هارون (Bank Haroun Save Doctor Bot)
- * الإصدار: v3.3 (الحل الجذري لمشكلة السيولة غير الكافية في الاستثمار + مزامنة السيرفر)
+ * الإصدار: v3.7 (مختبر على ملفات حقيقية ضد diagnoseRemoteFinancialHistory و reconcileStoryAtmSave وحارس مرآة الـATM)
  * ============================================================================
  *
  * المميزات:
  * 1. يعمل بدون أي مكتبات خارجية (Zero Dependencies) — يستخدم مكتبات Node.js المدمجة فقط.
- * 2. يعمل محلياً على الكمبيوتر (Long Polling) وبنفس الكود يعمل على السيرفرات المجانية (Render / Railway / Koyeb).
- * 3. يفحص ملفات (.haroun / .json) ويكتشف ويعالج:
- *    - مشكلة «السيولة غير كافية» في الاستثمار رغم ظهور السيولة في البنك:
- *      * السبب الحقيقي في كود اللعبة: شاشة «استثمارات هارونية» (/api-v4/investments) لا تقرأ السيولة
- *        من متصفحك مباشرة عند الضغط على «تأكيد الاشتراك»، بل تقرأها من نسخة الحفظ السحابية المخزنة
- *        على السيرفر (/api-v4/account)!
- *      * عندما يشتري اللاعب عملات من البنك المركزي (USD/EUR) ثم يبيعها أو يجمع أرباح ATM، تظل نقطة
- *        إقفال اليوم (dayCashCheckpoints[day].closingCash) ونسخة السيرفر عالقتين عند الرصيد القديم المنخفض
- *        (مثلاً 50,058 ج.م بينما سيولة البنك الفعلية 2,168,255 ج.م)، كما يتوقف الرفع التلقائي للسيرفر بسبب
- *        قفل تعارض المزامنة (bank-haroun-account-save-diverged-v1).
- *      * يقوم الإصدار v3.3 بـ:
- *        (أ) تصحيح closingCash و openingCash في dayCashCheckpoints دون خفض openingCash إذا كانت أعلى.
- *        (ب) إزالة جميع الكسور العشرية العالقة في أرصدة البداية (daySixtyTwoStartCash) وحسابات العملات (FX).
- *        (ج) رفع رتبة نسخة الجهاز (compareSaves / er(t) + saveRevision + 500) حتى تتفوق نسخة جهازك رسمياً
- *            على نسخة السيرفر العالقة عند الضغط على «اعتماد النسخة الأقوى ⬅ اعتمد نسخة جهازي» داخل «حساب بنك هارون».
- *    - تلف بصمة الأمان (SHA-256 Checksum) بمعادلة اللعبة الرسمية المباشرة JSON.stringify(a).
- *    - نقص أو تعارض إيصالات شراء ماكينات الصراف الآلي (ATM Ownership & Receipts).
- * 4. يعرض 6 أزرار تفاعلية (Inline Keyboard) داخل تيليجرام لاختيار نوع الإصلاح ويرسل الملف السليم فوراً.
- *
- * طريقة التشغيل السريعة على الكمبيوتر:
- * 1. ثبّت Node.js (الإصدار 18 أو أحدث) من https://nodejs.org
- * 2. ضع توكن البوت من @BotFather في المتغير BOT_TOKEN بالأسفل (أو في متغير البيئة BOT_TOKEN)
- * 3. شغّل الأمر:
- *    node bank_haroun_telegram_bot.js
+ * 2. يدعم قائمة الصلاحيات (ALLOWED_USER_IDS Whitelist) لحماية البوت وحصره على الأدمن فقط.
+ * 3. يحافظ 100% على:
+ *    - السيولة الفعلية (p.cash) بدون أي تقريب أو تعديل (لتجنب STORY_ATM_UNEXPLAINED_CASH على السيرفر).
+ *    - استمرارية السجل المالي (p.ledger) بدون أي حذف أو إزاحة (shift / unshift / filter / push / slice).
+ *    - بيانات القصة ونقاط الفحص (storyIndex / daySixtyTwoDecisionResults / dayCashCheckpoints) بدون أي تعديل.
+ * 4. يعالج:
+ *    - تثبيت إثبات ملكية ماكينات الصراف الآلي في storyAtmSnapshotV1.ownership ليعمل مع 1.69.395+ و 1.69.400+.
+ *    - تحييد إيصالات الشراء اليتيمة في مكانها داخل السجل (تعديل label وحذف atmOperation و atmSiteId فقط).
+ *    - زيادة storyAtmControlRevisionV1 بمقدار +1 فقط عند حذف ماكينة فعلياً أو تحييد إيصال يتيم.
+ *    - ختم الملف ببصمة SHA-256 الرسمية المباشرة JSON.stringify(a).
  * ============================================================================
  */
 
@@ -41,6 +27,21 @@ const crypto = require("crypto");
 const BOT_TOKEN = process.env.BOT_TOKEN || "PUT_YOUR_TELEGRAM_BOT_TOKEN_HERE";
 const PORT = Number(process.env.PORT || 3000);
 const WEBHOOK_URL = process.env.WEBHOOK_URL || ""; // اختياري للسيرفرات السحابية
+
+// قائمة معرفات تيليجرام المسموح لها باستخدام البوت (Whitelist لحماية أداة الأدمن)
+// v3.7: لو المتغير فاضي البوت يرفض الجميع (بدل ما يسمح للجميع). أي شخص يبعت رسالة هيشوف الـ ID بتاعه في رد الرفض،
+// وتحطه في متغير البيئة ALLOWED_USER_IDS مفصولة بفاصلة مثل: "123456789,987654321"
+const ALLOWED_USER_IDS = new Set(
+  (process.env.ALLOWED_USER_IDS || "")
+    .split(",")
+    .map(s => Number(s.trim()))
+    .filter(n => Number.isSafeInteger(n) && n > 0)
+);
+
+function isUserAllowed(userId) {
+  if (ALLOWED_USER_IDS.size === 0) return false;
+  return ALLOWED_USER_IDS.has(Number(userId));
+}
 
 // مواقع ماكينات الصراف الآلي المعتمدة في اللعبة
 const VALID_ATM_SITES = new Set(["republic", "canal", "garden", "ferry", "university"]);
@@ -69,7 +70,7 @@ setInterval(() => {
  * (باستخدام JSON.stringify المباشر بدون ترتيب أبجدي للمفاتيح)
  */
 function buildCanonicalEnvelope(saveObj) {
-  const payload = saveObj.payload || {};
+  const payload = JSON.parse(JSON.stringify(saveObj.payload || {}));
   const envelope = {
     format: "bank-haroun-save",
     saveVersion: Number.isFinite(Number(saveObj.saveVersion)) ? Number(saveObj.saveVersion) : 1,
@@ -119,175 +120,26 @@ function isAtmPurchaseEntry(entry) {
 }
 
 /**
- * تطبيق الإصلاح العميق لمشكلة «السيولة غير الكافية» في الاستثمار والمزامنة السحابية (v3.3)
+ * تطبيق الإصلاح العميق لمشكلة «السيولة غير الكافية» في الاستثمار والمزامنة السحابية (v3.6)
  */
-function applyDeepLiquidityFix(p, options = { refundActiveInvestments: false }) {
+/**
+ * مطابقة عداد الماكينات وتجهيز الملف للمزامنة الآمنة مع السيرفر (v3.6)
+ * ملاحظة هامة (بناءً على مراجعة كود السيرفر reconcileStoryAtmSave و investment-system.js):
+ * - لا يتم المساس بـ p.cash أو تقريبها أبداً لتجنب خطأ STORY_ATM_UNEXPLAINED_CASH على السيرفر.
+ * - لا يتم المساس بـ p.ledger أو dayCashCheckpoints أو storyIndex أو daySixtyTwoDecisionResults.
+ */
+function applyDeepLiquidityFix(p) {
   const logs = [];
   if (!p || typeof p !== "object") return logs;
 
-  // 1. إذا طلب المستخدم استرداد الاستثمارات النشطة المعلقة في السجل إلى سيولة البنك
-  if (options.refundActiveInvestments && Array.isArray(p.ledger)) {
-    const activeMap = new Map();
-    for (const item of p.ledger) {
-      const idStr = String(item?.id || "");
-      if (idStr.startsWith("ASSOC-INV-S-")) {
-        const key = idStr.slice("ASSOC-INV-S-".length);
-        activeMap.set(key, { idStr, amount: Math.abs(Math.round(Number(item.amount) || 0)), label: item.label });
-      } else if (idStr.startsWith("ASSOC-INV-W-S-") || idStr.startsWith("ASSOC-INV-C-S-")) {
-        const key = idStr.replace(/^ASSOC-INV-[WC]-S-/, "");
-        activeMap.delete(key);
-      }
-    }
-    for (const [key, inv] of activeMap.entries()) {
-      if (inv.amount > 0) {
-        const refundId = `ASSOC-INV-W-S-${key}`;
-        if (!p.ledger.some(e => e && e.id === refundId)) {
-          p.ledger.push({
-            id: refundId,
-            amount: inv.amount,
-            label: String(inv.label || "").replace("استثمار هارون:", "سحب استثمار:") || "سحب استثمار مسترد"
-          });
-          if (p.ledger.length > 520) {
-            p.ledger = p.ledger.slice(-520);
-          }
-          p.cash = Math.round((Number(p.cash) || 0) + inv.amount);
-          logs.push(`استرداد مبلغ الاستثمار النشط (${inv.amount.toLocaleString("en-US")} ج.م) وإضافته لسيولة البنك.`);
-        }
-      }
-    }
-  }
-
-  // 2. تقريب السيولة الحالية إلى عدد صحيح نظيف (بدون كسور قروش تعطل فحص Number.isSafeInteger)
-  const cleanCash = Math.max(0, Math.round(Number(p.cash) || 0));
-  if (p.cash !== cleanCash) {
-    logs.push(`تصحيح كسور السيولة من ${p.cash} إلى عدد صحيح (${cleanCash.toLocaleString("en-US")} ج.م).`);
-  }
-  p.cash = cleanCash;
-
-  // 3. تقريب أرصدة بداية الأيام وأرباح العملات وسجل الحركات من أي كسور عشرية
-  for (const [k, v] of Object.entries(p)) {
-    if ((/^day.*StartCash$/.test(k) || k === "dayFortyFourFxRealizedProfit") && typeof v === "number" && Number.isFinite(v)) {
-      const rounded = Math.round(v);
-      if (rounded !== v) {
-        p[k] = rounded;
-        logs.push(`إزالة الكسر العشري من ${k} (${v} ⬅ ${rounded.toLocaleString("en-US")}).`);
-      }
-    }
-  }
-  if (p.fxCentralBankRealizedProfitByDay && typeof p.fxCentralBankRealizedProfitByDay === "object") {
-    for (const [dk, dv] of Object.entries(p.fxCentralBankRealizedProfitByDay)) {
-      if (typeof dv === "number" && Number.isFinite(dv)) {
-        p.fxCentralBankRealizedProfitByDay[dk] = Math.round(dv);
-      }
-    }
-  }
   if (p.atmNetworkV1 && Array.isArray(p.atmNetworkV1.machines) && p.atmCount !== p.atmNetworkV1.machines.length) {
     p.atmCount = p.atmNetworkV1.machines.length;
     logs.push(`مطابقة عداد ماكينات الـ ATM (atmCount) إلى ${p.atmCount} ماكينة.`);
   }
 
-  // 4. تنظيف الكسور العشرية العالقة في أرصدة وتكلفة العملات الأجنبية (FX Floating-Point Dust)
-  const fxFields = [
-    "fxCashUsd", "fxCashEur", "fxAccountUsd", "fxAccountEur",
-    "fxCashUsdCostEgp", "fxCashEurCostEgp", "fxAccountUsdCostEgp", "fxAccountEurCostEgp"
-  ];
-  let cleanedFxCount = 0;
-  for (const fk of fxFields) {
-    if (typeof p[fk] === "number" && Number.isFinite(p[fk])) {
-      const roundedFx = Math.round(p[fk] * 100) / 100;
-      if (roundedFx !== p[fk]) {
-        p[fk] = roundedFx;
-        cleanedFxCount++;
-      }
-    }
-  }
-  if (cleanedFxCount > 0) {
-    logs.push(`تنظيف الكسور العشرية العالقة في ${cleanedFxCount} من حقول العملات الأجنبية (FX).`);
-  }
-
-  // 5. إصلاح dayCashCheckpoints[day]:
-  //    - في ملف مثل Bank-Haroun-Day-44-Save.json تكون closingCash متوقفة عند 50,058 ج.م بينما cash = 2,168,255 ج.م!
-  //    - وفي ملفات أخرى تكون openingCash متوقفة عند 179,200 ج.م بينما cash = 2,410,784 ج.م.
-  //    - نحرص على رفع closingCash دائماً لتطابق cleanCash، ورفع openingCash فقط إذا كانت أقل من cleanCash (دون خفضها أبداً إذا كانت أعلى!).
-  const dayNum = Math.max(1, Math.min(44, Math.floor(Number(p.day) || 1)));
-  const dayKey = String(dayNum);
-  if (!p.dayCashCheckpoints || typeof p.dayCashCheckpoints !== "object") {
-    p.dayCashCheckpoints = {};
-  }
-  const cp = p.dayCashCheckpoints[dayKey] || {
-    day: dayNum,
-    betweenDayDelta: 0,
-    guardCorrection: 0,
-    previousClosingCash: cleanCash,
-    openingCash: cleanCash,
-    closingCash: cleanCash
-  };
-
-  const oldOpening = Math.round(Number(cp.openingCash) || 0);
-  const oldClosing = Math.round(Number(cp.closingCash) || 0);
-  const prevDayCp = p.dayCashCheckpoints[String(dayNum - 1)];
-  const prevClosing = (prevDayCp && Number.isFinite(Number(prevDayCp.closingCash)))
-    ? Math.round(Number(prevDayCp.closingCash))
-    : Math.round(Number(cp.previousClosingCash) || cleanCash);
-
-  cp.previousClosingCash = prevClosing;
-  cp.closingCash = cleanCash;
-  cp.guardCorrection = 0;
-
-  if (oldOpening < cleanCash) {
-    cp.openingCash = cleanCash;
-    cp.betweenDayDelta = cleanCash - prevClosing;
-    logs.push(
-      `رفع رصيد افتتاح اليوم (${dayKey}) في نقطة الفحص من ${oldOpening.toLocaleString("en-US")} ج.م إلى ${cleanCash.toLocaleString("en-US")} ج.م.`
-    );
-  } else {
-    cp.openingCash = oldOpening;
-    cp.betweenDayDelta = Math.round(Number(cp.betweenDayDelta) || 0);
-  }
-
-  if (oldClosing !== cleanCash) {
-    logs.push(
-      `تصحيح رصيد إقفال اليوم (${dayKey}) العالق في نقطة الفحص (closingCash) من ${oldClosing.toLocaleString("en-US")} ج.م إلى ${cleanCash.toLocaleString("en-US")} ج.م.`
-    );
-  }
-  p.dayCashCheckpoints[dayKey] = cp;
-
-  // 6. مطابقة عداد الدرج (dayTwentyNineDrawerTrackedCash) مع السيولة الحالية
-  if (typeof p.dayTwentyNineDrawerTrackedCash === "number") {
-    p.dayTwentyNineDrawerTrackedCash = cleanCash;
-    p.dayTwentyNineDrawerRemainder = 0;
-  }
-
-  // 7. رفع رتبة النسخة المحلية (Zn(t) + storyIndex) لتتفوق رسمياً في compareSaves و syncHigherLocalNow و promoteLocalOverServer
-  if (dayNum === 44 && p.daySixtyTwoStarted) {
-    if (!p.daySixtyTwoDecisionResults || typeof p.daySixtyTwoDecisionResults !== "object" || Array.isArray(p.daySixtyTwoDecisionResults)) {
-      p.daySixtyTwoDecisionResults = {};
-    }
-    const currentDecisionCount = Object.values(p.daySixtyTwoDecisionResults).filter(v => String(v || "").trim()).length;
-    const targetDecisionCount = Math.min(38, Math.max(14, currentDecisionCount + 2));
-    let idx = 1;
-    while (Object.values(p.daySixtyTwoDecisionResults).filter(v => String(v || "").trim()).length < targetDecisionCount) {
-      const syncKey = `_syncBoost_${idx++}`;
-      if (!p.daySixtyTwoDecisionResults[syncKey]) {
-        p.daySixtyTwoDecisionResults[syncKey] = "approve";
-      }
-    }
-  }
-
-  if (dayNum >= 2) {
-    const oldStoryIdx = Math.max(11, Math.floor(Number(p.storyIndex) || 11));
-    p.storyIndex = Math.min(999, oldStoryIdx + 2);
-    logs.push(
-      `رفع رتبة تقدم النسخة المحلية (Rank Boost) لضمان تفوق نسخة جهازك على نسخة السيرفر العالقة عند الضغط على «اعتماد النسخة الأقوى ⬅ اعتمد نسخة جهازي».`
-    );
-  }
-
   return logs;
 }
 
-/**
- * فحص شامل لملف الحفظ وإرجاع تقرير مفصل بالمشاكل المكتشفة
- */
 function inspectSaveFile(rawText) {
   let data;
   try {
@@ -296,6 +148,19 @@ function inspectSaveFile(rawText) {
     return { validJson: false, error: "الملف ليس بصيغة JSON صالحة أو أنه تالف." };
   }
 
+  if (data && typeof data === "object" && !data.payload && (typeof data.cash === "number" || typeof data.day === "number")) {
+    data = {
+      format: "bank-haroun-save",
+      saveVersion: 1,
+      gameVersion: "1.69.389",
+      createdAt: new Date().toISOString(),
+      completedDay: Math.max(0, Math.floor(Number(data.day) || 1) - 1),
+      currentDay: Math.max(1, Math.floor(Number(data.day) || 1)),
+      saveRevision: Math.max(1, Math.floor(Number(data.saveRevision) || 1)),
+      updatedAt: Number(data.lastSavedAt) || Date.now(),
+      payload: data
+    };
+  }
   if (!data || data.format !== "bank-haroun-save" || !data.payload || typeof data.payload !== "object") {
     return { validJson: false, error: "هذا الملف ليس ملف حفظ صالح للعبة بنك هارون (bank-haroun-save)." };
   }
@@ -431,7 +296,7 @@ function inspectSaveFile(rawText) {
 /**
  * تطبيق الإصلاح المطلوب على نسخة الحفظ وإرجاع النص الجاهز والتقرير
  * @param {string} rawText
- * @param {"full"|"liquidity"|"liquidity_refund"|"remove_bad_atm"|"remove_all_atm"|"checksum_only"} mode
+ * @param {"full"|"liquidity"|"remove_bad_atm"|"remove_all_atm"|"checksum_only"} mode
  */
 function repairSaveFile(rawText, mode = "full") {
   const report = inspectSaveFile(rawText);
@@ -439,7 +304,20 @@ function repairSaveFile(rawText, mode = "full") {
     throw new Error(report.error);
   }
 
-  const save = JSON.parse(rawText);
+  let save = JSON.parse(rawText);
+  if (save && typeof save === "object" && !save.payload && (typeof save.cash === "number" || typeof save.day === "number")) {
+    save = {
+      format: "bank-haroun-save",
+      saveVersion: 1,
+      gameVersion: "1.69.389",
+      createdAt: new Date().toISOString(),
+      completedDay: Math.max(0, Math.floor(Number(save.day) || 1) - 1),
+      currentDay: Math.max(1, Math.floor(Number(save.day) || 1)),
+      saveRevision: Math.max(1, Math.floor(Number(save.saveRevision) || 1)),
+      updatedAt: Number(save.lastSavedAt) || Date.now(),
+      payload: save
+    };
+  }
   const p = save.payload;
   const actionsTaken = [];
 
@@ -473,26 +351,11 @@ function repairSaveFile(rawText, mode = "full") {
         }
 
         const existingIdx = p.ledger.findIndex(e => e && e.id === recId);
-        if (existingIdx === -1) {
-          if (p.ledger.length >= 520) {
-            const removableIdx = p.ledger.findIndex(e => {
-              const id = String(e?.id || "");
-              return !isAtmPurchaseEntry(e) && !id.startsWith("GIFT-") && !id.startsWith("ASSOC-") && !id.startsWith("ATM-SRV-");
-            });
-            if (removableIdx !== -1) {
-              p.ledger.splice(removableIdx, 1);
-            }
-          }
-          p.ledger.unshift({
-            id: recId,
-            amount: -2000000,
-            label: "حركة شبكة ماكينات بنك هارون: تم إرسال طلب التركيب. الماكينة قيد الإنشاء لمدة خمس دقائق.",
-            atmOperation: "purchase",
-            atmSiteId: m.id
-          });
-          actionsTaken.push(`استعادة إيصال شراء الماكينة (${m.id}) في سجل البنك بدون خصم جديد من السيولة.`);
+        if (existingIdx !== -1) {
+          p.ledger[existingIdx].atmOperation = "purchase";
+          p.ledger[existingIdx].atmSiteId = m.id;
         } else {
-          p.ledger[existingIdx].amount = -2000000;
+          actionsTaken.push(`تثبيت إثبات ملكية الماكينة (${m.id}) في storyAtmSnapshotV1.ownership (${recId}) ليعمل مع معالج 1.69.395+ دون المساس بترتيب الـ 520 حركة في السجل.`);
         }
       }
 
@@ -503,11 +366,15 @@ function repairSaveFile(rawText, mode = "full") {
       p.atmNetworkV1 = JSON.parse(JSON.stringify(net));
       p.storyAtmSnapshotV1.network = JSON.parse(JSON.stringify(net));
       p.atmCount = net.machines.length;
+      delete p.atmRestartLockedDay;
     }
   } else if (mode === "remove_bad_atm") {
     const net = p.atmNetworkV1 || (p.storyAtmSnapshotV1 && p.storyAtmSnapshotV1.network);
     const ownership = (p.storyAtmSnapshotV1 && p.storyAtmSnapshotV1.ownership) || {};
     const purchaseIds = new Set(p.ledger.filter(isAtmPurchaseEntry).map(e => e.id));
+
+    let removedMachinesCount = 0;
+    let neutralizedCount = 0;
 
     if (net && Array.isArray(net.machines)) {
       const beforeCount = net.machines.length;
@@ -515,6 +382,7 @@ function repairSaveFile(rawText, mode = "full") {
         const rId = ownership[m.id];
         return VALID_ATM_SITES.has(m.id) && rId && ATM_RECEIPT_REGEX.test(rId) && purchaseIds.has(rId);
       });
+      removedMachinesCount = beforeCount - keptMachines.length;
       const keptIds = new Set(keptMachines.map(m => m.id));
       const newOwnership = {};
       for (const [k, v] of Object.entries(ownership)) {
@@ -526,18 +394,62 @@ function repairSaveFile(rawText, mode = "full") {
           delete e.atmOperation;
           delete e.atmSiteId;
           e.label = "حركة شبكة ماكينات بنك هارون: تسوية إغلاق موقع ماكينة صراف آلي.";
+          neutralizedCount++;
         }
       }
 
-      net.machines = keptMachines;
-      p.atmNetworkV1 = JSON.parse(JSON.stringify(net));
-      if (p.storyAtmSnapshotV1) {
-        p.storyAtmSnapshotV1.network = JSON.parse(JSON.stringify(net));
-        p.storyAtmSnapshotV1.ownership = newOwnership;
+      if (keptMachines.length === 0) {
+        delete p.atmNetworkV1;
+        delete p.storyAtmSnapshotV1;
+        p.atmCount = 0;
+      } else {
+        net.machines = keptMachines;
+        p.atmNetworkV1 = JSON.parse(JSON.stringify(net));
+        if (p.storyAtmSnapshotV1) {
+          p.storyAtmSnapshotV1.network = JSON.parse(JSON.stringify(net));
+          p.storyAtmSnapshotV1.ownership = newOwnership;
+        }
+        p.atmCount = keptMachines.length;
       }
-      p.atmCount = keptMachines.length;
-      actionsTaken.push(`حذف ${beforeCount - keptMachines.length} ماكينة غير متوافقة وتنظيف إيصالاتها العالقة (${keptMachines.length} ماكينة سليمة متبقية).`);
+      delete p.atmRestartLockedDay;
+    } else {
+      for (const e of p.ledger) {
+        if (isAtmPurchaseEntry(e)) {
+          delete e.atmOperation;
+          delete e.atmSiteId;
+          e.label = "حركة شبكة ماكينات بنك هارون: تسوية إغلاق موقع ماكينة صراف آلي.";
+          neutralizedCount++;
+        }
+      }
+      delete p.atmNetworkV1;
+      delete p.storyAtmSnapshotV1;
+      delete p.atmRestartLockedDay;
+      p.atmCount = 0;
     }
+
+    if (removedMachinesCount > 0 || neutralizedCount > 0) {
+      p.storyAtmControlRevisionV1 = Math.max(0, Math.floor(Number(p.storyAtmControlRevisionV1) || 0)) + 1;
+    }
+    actionsTaken.push(`حذف ${removedMachinesCount} ماكينة غير متوافقة وتحييد ${neutralizedCount} إيصال شراء يتيم في مكانه دون المساس بطول أو ترتيب السجل.`);
+  } else if (mode === "neutralize_orphans") {
+    // v3.7: تحييد إيصالات الشراء اليتيمة فقط (إيصال شراء -2,000,000 بدون ماكينة تملكه) من غير لمس الماكينات وبدون رفع
+    // storyAtmControlRevisionV1. السيرفر هو اللي يقرر: لو عنده الماكينات يطلب الاستعادة (الصح)، ولو مفيهوش يقبل الملف.
+    // ملاحظة: التحييد بيشيل دليل الدفع من الملف، فاستخدمه بعد ما تقرر إن اللاعب هياخد تعويض من الدعم.
+    const net = p.atmNetworkV1 || (p.storyAtmSnapshotV1 && p.storyAtmSnapshotV1.network);
+    const ownership = (p.storyAtmSnapshotV1 && p.storyAtmSnapshotV1.ownership) || {};
+    const machineIds = new Set(net && Array.isArray(net.machines) ? net.machines.map(m => m.id) : []);
+    const ownedReceipts = new Set(Object.entries(ownership).filter(([site]) => machineIds.has(site)).map(([, id]) => id));
+    let neutralized = 0;
+    for (const e of p.ledger) {
+      if (isAtmPurchaseEntry(e) && !ownedReceipts.has(e.id)) {
+        delete e.atmOperation;
+        delete e.atmSiteId;
+        e.label = "حركة شبكة ماكينات بنك هارون: تسوية إغلاق موقع ماكينة صراف آلي.";
+        neutralized++;
+      }
+    }
+    delete p.atmRestartLockedDay;
+    actionsTaken.push(`تحييد ${neutralized} إيصال شراء يتيم في مكانه (id والمبلغ وترتيب السجل زي ما هم) من غير رفع رقم مراجعة الـATM ومن غير لمس الماكينات.`);
   } else if (mode === "remove_all_atm") {
     const emptyNet = {
       schema: 1,
@@ -566,15 +478,14 @@ function repairSaveFile(rawText, mode = "full") {
     }
     delete p.atmNetworkV1;
     delete p.storyAtmSnapshotV1;
+    delete p.atmRestartLockedDay;
     p.storyAtmControlRevisionV1 = Math.max(0, Math.floor(Number(p.storyAtmControlRevisionV1) || 0)) + 1;
     actionsTaken.push(`مسح جميع ماكينات الصراف الآلي بالكامل وتحييد ${neutralized} إيصال شراء قديم لتجهيز الحساب للتعويض بأمان مع المزامنة.`);
   }
 
   // 2. إصلاح مشكلة «السيولة غير الكافية» في الاستثمار والمزامنة (يعمل في جميع الأوضاع ما عدا checksum_only)
   if (mode !== "checksum_only") {
-    const liqLogs = applyDeepLiquidityFix(p, {
-      refundActiveInvestments: mode === "liquidity_refund"
-    });
+    const liqLogs = applyDeepLiquidityFix(p);
     actionsTaken.push(...liqLogs);
 
     const nextRev = Math.max(0, Math.floor(Number(save.saveRevision) || Number(p.saveRevision) || 0)) + 500;
@@ -746,10 +657,10 @@ function buildRepairKeyboard() {
         { text: "🔧 إصلاح شامل (إيصالات + سيولة الاستثمار + البصمة)", callback_data: "fix:full" }
       ],
       [
-        { text: "💰 إصلاح مشكلة «السيولة غير الكافية» في الاستثمار فقط", callback_data: "fix:liquidity" }
+        { text: "🔄 تحديث رقم المراجعة للمزامنة (saveRevision +500)", callback_data: "fix:liquidity" }
       ],
       [
-        { text: "🔄 إصلاح السيولة + استرداد الاستثمارات النشطة للبنك", callback_data: "fix:liquidity_refund" }
+        { text: "🧾 تحييد إيصالات الشراء اليتيمة فقط (من غير رفع رقم المراجعة)", callback_data: "fix:neutralize_orphans" }
       ],
       [
         { text: "🏧 حذف الماكينات غير المتوافقة (تجهيز للتعويض)", callback_data: "fix:remove_bad_atm" }
@@ -766,7 +677,7 @@ function buildRepairKeyboard() {
 
 function formatDiagnosticReport(info, fileName) {
   const lines = [
-    `🏦 <b>تقرير فحص ملف حفظ بنك هارون (v3.3)</b>`,
+    `🏦 <b>تقرير فحص ملف حفظ بنك هارون (v3.6)</b>`,
     `📄 <b>الملف:</b> <code>${fileName}</code>`,
     ``,
     `🔹 <b>اليوم الفعلي:</b> اليوم ${info.publicDay} (المرحلة: <code>${info.phase}</code>)`,
@@ -793,7 +704,7 @@ function formatDiagnosticReport(info, fileName) {
   }
 
   if (info.liquiditySyncWarning) {
-    lines.push(``, `💡 <b>تشخيص مشكلة «السيولة غير الكافية» في الاستثمار (v3.3):</b>`);
+    lines.push(``, `💡 <b>تشخيص مشكلة «السيولة غير الكافية» في الاستثمار (v3.6):</b>`);
     if (info.isClosingDesynced) {
       lines.push(
         `• رصيد إقفال اليوم المسجل في نقطة الفحص (<code>closingCash</code>) متوقف عند <b>${Math.round(info.checkpointClosingCash).toLocaleString("en-US")} ج.م</b> بينما سيولة البنك الفعلية <b>${Math.round(info.cash).toLocaleString("en-US")} ج.م</b> (بسبب بيع عملات للبنك المركزي أو جمع أرباح ATM بعد آخر مزامنة استثمار).`
@@ -805,8 +716,8 @@ function formatDiagnosticReport(info, fileName) {
       );
     }
     lines.push(
-      `• <b>السبب الأهم على السيرفر:</b> شاشة «استثمارات هارونية» تقرأ السيولة من <b>نسخة السيرفر</b> وليس من متصفحك! وعند استعادة ملف الحفظ، توقف اللعبة الرفع التلقائي للسيرفر بسبب قفل التعارض (<code>diverged</code>).`,
-      `• اضغط على زر <b>«💰 إصلاح مشكلة السيولة غير الكافية في الاستثمار»</b> بالأسفل، ثم بعد استعادة الملف داخل اللعبة افتح <b>«حساب بنك هارون» ⬅ «اعتماد النسخة الأقوى» ⬅ «اعتمد نسخة جهازي»</b> ليقرأ السيرفر سيولتك الكاملة فوراً!`
+      `• نقط الفحص دي معلومة فقط: السيرفر بيقارن <code>cash</code> بالمبلغ ولا يقرأ هذه النقط، والبوت لا يعدلها.`,
+      `• <b>السبب المرجّح:</b> شاشة «استثمارات هارونية» تخصم من <b>نسخة السيرفر</b> وليس من متصفح اللاعب. اللعبة 1.69.400+ ترفع نسخة الجهاز تلقائياً قبل الاشتراك؛ لو لسه ظهرت الرسالة يفتح «حساب بنك هارون ⬅ مزامنة الآن» ثم يجرب تاني.`
     );
   }
 
@@ -818,6 +729,14 @@ async function handleUpdate(update) {
   try {
     if (update.callback_query) {
       const cb = update.callback_query;
+      if (!isUserAllowed(cb.from?.id)) {
+        await callTelegramApi("answerCallbackQuery", {
+          callback_query_id: cb.id,
+          text: `⛔ هذا البوت مخصص للأدمن فقط. معرفك: ${cb.from?.id}`,
+          show_alert: true
+        });
+        return;
+      }
       const chatId = cb.message?.chat?.id;
       const data = String(cb.data || "");
 
@@ -858,12 +777,12 @@ async function handleUpdate(update) {
 
       const result = repairSaveFile(session.rawText, mode);
       const baseName = session.fileName.replace(/\.json$/i, "").replace(/\.haroun$/i, "");
-      const outName = `${baseName}-Fixed-${mode}.haroun.json`;
+      const outName = `${baseName}-Fixed-${mode}.haroun`;
 
       // ملاحظة هامة: حد تيليجرام الأقصى لـ caption في sendDocument هو 1024 حرفاً فقط!
       // لذلك نجعل وصف الملف مختصراً وأقل من 800 حرف دائماً حتى لا يرفضه تيليجرام
       const shortCaptionLines = [
-        `✅ <b>تم إصلاح الملف بنجاح (v3.4)!</b>`,
+        `✅ <b>تم إصلاح الملف بنجاح (v3.6)!</b>`,
         `💰 <b>السيولة المعتمدة:</b> ${Math.round(result.finalSave.payload.cash).toLocaleString("en-US")} ج.م`,
         `🔢 <b>رقم المراجعة الجديد:</b> <code>${result.finalSave.saveRevision}</code>`,
         `🔐 <b>البصمة:</b> <code>${result.checksum.slice(0, 16)}...</code>`,
@@ -921,13 +840,21 @@ async function handleUpdate(update) {
     const msg = update.message;
     if (!msg || !msg.chat) return;
     const chatId = msg.chat.id;
+    if (!isUserAllowed(msg.from?.id)) {
+      await callTelegramApi("sendMessage", {
+        chat_id: chatId,
+        text: `⛔ <b>عذراً، هذا البوت خاص بأدمن لعبة بنك هارون فقط.</b>\nمعرف حسابك على تيليجرام (User ID): <code>${msg.from?.id}</code>`,
+        parse_mode: "HTML"
+      });
+      return;
+    }
 
     if (msg.text && (msg.text.startsWith("/start") || msg.text.startsWith("/help"))) {
       const welcome = [
-        `أهلاً بك في <b>بوت فحص وإصلاح ملفات حفظ بنك هارون (v3.3)</b> 🏦✨`,
+        `أهلاً بك في <b>بوت فحص وإصلاح ملفات حفظ بنك هارون (v3.6)</b> 🏦✨`,
         ``,
         `أرسل لي أي ملف حفظ (<code>.haroun</code> أو <code>.json</code>) وسأقوم فوراً بـ:`,
-        `1️⃣ حل مشكلة <b>«السيولة غير الكافية» في الاستثمار</b> رغم وجود سيولة في البنك (تصحيح <code>closingCash / openingCash</code> ورفع رتبة نسخة الجهاز لتحديث نسخة السيرفر عبر «اعتمد نسخة جهازي»).`,
+        `1️⃣ تجهيز الملف للمزامنة (رفع رقم المراجعة saveRevision فقط). <b>السيولة والسجل لا يتغيروا أبداً.</b> مشكلة «السيولة غير الكافية» سببها نسخة السيرفر، واللعبة 1.69.400+ بترفع نسخة الجهاز قبل الاشتراك تلقائياً.`,
         `2️⃣ فحص البصمة الرسمية (SHA-256) وإصلاح خطأ <i>«بصمة ملف التقدم غير مطابقة»</i>.`,
         `3️⃣ استعادة إيصالات ماكينات الـ ATM المفقودة أو حذف الماكينات التالفة للحصول على تعويض إلياس.`,
         ``,
@@ -1010,7 +937,7 @@ async function startPolling() {
   pollingActive = true;
 
   await callTelegramApi("deleteWebhook", { drop_pending_updates: false }).catch(() => {});
-  console.log("✅ البوت (v3.3) يعمل الآن بنظام Long Polling وجاهز لاستقبال ملفات الحفظ على تيليجرام!");
+  console.log("✅ البوت (v3.6) يعمل الآن بنظام Long Polling وجاهز لاستقبال ملفات الحفظ على تيليجرام!");
 
   while (pollingActive) {
     try {
@@ -1051,7 +978,7 @@ const server = http.createServer((req, res) => {
   }
 
   res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-  res.end("🏦 Bank Haroun Save Doctor Telegram Bot v3.3 is running!\n");
+  res.end("🏦 Bank Haroun Save Doctor Telegram Bot v3.6 is running!\n");
 });
 
 server.listen(PORT, async () => {
