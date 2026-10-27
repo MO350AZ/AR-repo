@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * 🏦 بوت تيليجرام لفحص وإصلاح ملفات حفظ بنك هارون (Bank Haroun Save Doctor Bot)
- * الإصدار: v3.2 (متوافق 100% مع بصمة اللعبة الرسمية + حل جذري لمشكلة السيولة غير الكافية)
+ * الإصدار: v3.3 (الحل الجذري لمشكلة السيولة غير الكافية في الاستثمار + مزامنة السيرفر)
  * ============================================================================
  *
  * المميزات:
@@ -9,9 +9,18 @@
  * 2. يعمل محلياً على الكمبيوتر (Long Polling) وبنفس الكود يعمل على السيرفرات المجانية (Render / Railway / Koyeb).
  * 3. يفحص ملفات (.haroun / .json) ويكتشف ويعالج:
  *    - مشكلة «السيولة غير كافية» في الاستثمار رغم ظهور السيولة في البنك:
- *      * يعالج انخفاض openingCash في dayCashCheckpoints (مثل توقفها عند 179,200 ج.م بينما السيولة 2,410,784 ج.م).
- *      * يضبط betweenDayDelta و closingCash ويزيل الكسور العشرية (.5 / .8) من أرصدة البداية.
- *      * يرفع مؤشر تقدم المزامنة (storyIndex + 2) و (saveRevision + 15) لتخطي قفل "review" وإجبار السيرفر على اعتماد السيولة الكاملة.
+ *      * السبب الحقيقي في كود اللعبة: شاشة «استثمارات هارونية» (/api-v4/investments) لا تقرأ السيولة
+ *        من متصفحك مباشرة عند الضغط على «تأكيد الاشتراك»، بل تقرأها من نسخة الحفظ السحابية المخزنة
+ *        على السيرفر (/api-v4/account)!
+ *      * عندما يشتري اللاعب عملات من البنك المركزي (USD/EUR) ثم يبيعها أو يجمع أرباح ATM، تظل نقطة
+ *        إقفال اليوم (dayCashCheckpoints[day].closingCash) ونسخة السيرفر عالقتين عند الرصيد القديم المنخفض
+ *        (مثلاً 50,058 ج.م بينما سيولة البنك الفعلية 2,168,255 ج.م)، كما يتوقف الرفع التلقائي للسيرفر بسبب
+ *        قفل تعارض المزامنة (bank-haroun-account-save-diverged-v1).
+ *      * يقوم الإصدار v3.3 بـ:
+ *        (أ) تصحيح closingCash و openingCash في dayCashCheckpoints دون خفض openingCash إذا كانت أعلى.
+ *        (ب) إزالة جميع الكسور العشرية العالقة في أرصدة البداية (daySixtyTwoStartCash) وحسابات العملات (FX).
+ *        (ج) رفع رتبة نسخة الجهاز (compareSaves / er(t) + saveRevision + 500) حتى تتفوق نسخة جهازك رسمياً
+ *            على نسخة السيرفر العالقة عند الضغط على «اعتماد النسخة الأقوى ⬅ اعتمد نسخة جهازي» داخل «حساب بنك هارون».
  *    - تلف بصمة الأمان (SHA-256 Checksum) بمعادلة اللعبة الرسمية المباشرة JSON.stringify(a).
  *    - نقص أو تعارض إيصالات شراء ماكينات الصراف الآلي (ATM Ownership & Receipts).
  * 4. يعرض 6 أزرار تفاعلية (Inline Keyboard) داخل تيليجرام لاختيار نوع الإصلاح ويرسل الملف السليم فوراً.
@@ -110,7 +119,7 @@ function isAtmPurchaseEntry(entry) {
 }
 
 /**
- * تطبيق الإصلاح العميق لمشكلة «السيولة غير الكافية» في الاستثمار والمزامنة السحابية
+ * تطبيق الإصلاح العميق لمشكلة «السيولة غير الكافية» في الاستثمار والمزامنة السحابية (v3.3)
  */
 function applyDeepLiquidityFix(p, options = { refundActiveInvestments: false }) {
   const logs = [];
@@ -155,7 +164,7 @@ function applyDeepLiquidityFix(p, options = { refundActiveInvestments: false }) 
   }
   p.cash = cleanCash;
 
-  // 3. تقريب أرصدة بداية الأيام من أي كسور عشرية (مثل daySixtyTwoStartCash: 644082.5)
+  // 3. تقريب أرصدة بداية الأيام من أي كسور عشرية (مثل daySixtyTwoStartCash: 1564167.5)
   for (const [k, v] of Object.entries(p)) {
     if (/^day.*StartCash$/.test(k) && typeof v === "number" && Number.isFinite(v)) {
       const rounded = Math.round(v);
@@ -166,7 +175,29 @@ function applyDeepLiquidityFix(p, options = { refundActiveInvestments: false }) 
     }
   }
 
-  // 4. إصلاح فجوة dayCashCheckpoints[day] (السبب الرئيسي لرفض المبالغ الأكبر من openingCash مثل 179,200 ج.م!)
+  // 4. تنظيف الكسور العشرية العالقة في أرصدة وتكلفة العملات الأجنبية (FX Floating-Point Dust)
+  const fxFields = [
+    "fxCashUsd", "fxCashEur", "fxAccountUsd", "fxAccountEur",
+    "fxCashUsdCostEgp", "fxCashEurCostEgp", "fxAccountUsdCostEgp", "fxAccountEurCostEgp"
+  ];
+  let cleanedFxCount = 0;
+  for (const fk of fxFields) {
+    if (typeof p[fk] === "number" && Number.isFinite(p[fk])) {
+      const roundedFx = Math.round(p[fk] * 100) / 100;
+      if (roundedFx !== p[fk]) {
+        p[fk] = roundedFx;
+        cleanedFxCount++;
+      }
+    }
+  }
+  if (cleanedFxCount > 0) {
+    logs.push(`تنظيف الكسور العشرية العالقة في ${cleanedFxCount} من حقول العملات الأجنبية (FX).`);
+  }
+
+  // 5. إصلاح dayCashCheckpoints[day]:
+  //    - في ملف مثل Bank-Haroun-Day-44-Save.json تكون closingCash متوقفة عند 50,058 ج.م بينما cash = 2,168,255 ج.م!
+  //    - وفي ملفات أخرى تكون openingCash متوقفة عند 179,200 ج.م بينما cash = 2,410,784 ج.م.
+  //    - نحرص على رفع closingCash دائماً لتطابق cleanCash، ورفع openingCash فقط إذا كانت أقل من cleanCash (دون خفضها أبداً إذا كانت أعلى!).
   const dayNum = Math.max(1, Math.min(44, Math.floor(Number(p.day) || 1)));
   const dayKey = String(dayNum);
   if (!p.dayCashCheckpoints || typeof p.dayCashCheckpoints !== "object") {
@@ -181,8 +212,8 @@ function applyDeepLiquidityFix(p, options = { refundActiveInvestments: false }) 
     closingCash: cleanCash
   };
 
-  const oldOpening = Number(cp.openingCash) || 0;
-  const oldClosing = Number(cp.closingCash) || 0;
+  const oldOpening = Math.round(Number(cp.openingCash) || 0);
+  const oldClosing = Math.round(Number(cp.closingCash) || 0);
   const prevDayCp = p.dayCashCheckpoints[String(dayNum - 1)];
   const prevClosing = (prevDayCp && Number.isFinite(Number(prevDayCp.closingCash)))
     ? Math.round(Number(prevDayCp.closingCash))
@@ -192,35 +223,51 @@ function applyDeepLiquidityFix(p, options = { refundActiveInvestments: false }) 
   cp.closingCash = cleanCash;
   cp.guardCorrection = 0;
 
-  // إذا كان اليوم مكتملاً أو كانت openingCash أقل من السيولة الحالية (بسبب إيرادات CORP-CONV و ATM-LOCAL)،
-  // نرفع openingCash و betweenDayDelta لتطابق السيولة الحالية حتى لا يصبح الرصيد سالباً عند خصم الاستثمار!
-  if (String(p.phase || "").endsWith("-complete") || oldOpening < cleanCash) {
+  if (oldOpening < cleanCash) {
     cp.openingCash = cleanCash;
     cp.betweenDayDelta = cleanCash - prevClosing;
+    logs.push(
+      `رفع رصيد افتتاح اليوم (${dayKey}) في نقطة الفحص من ${oldOpening.toLocaleString("en-US")} ج.م إلى ${cleanCash.toLocaleString("en-US")} ج.م.`
+    );
   } else {
-    cp.openingCash = Math.round(oldOpening);
+    cp.openingCash = oldOpening;
     cp.betweenDayDelta = Math.round(Number(cp.betweenDayDelta) || 0);
+  }
+
+  if (oldClosing !== cleanCash) {
+    logs.push(
+      `تصحيح رصيد إقفال اليوم (${dayKey}) العالق في نقطة الفحص (closingCash) من ${oldClosing.toLocaleString("en-US")} ج.م إلى ${cleanCash.toLocaleString("en-US")} ج.م.`
+    );
   }
   p.dayCashCheckpoints[dayKey] = cp;
 
-  if (oldOpening !== cp.openingCash || oldClosing !== cp.closingCash) {
-    logs.push(
-      `إصلاح نقطة فحص السيولة لليوم (${dayKey}): رفع حد السيولة المعتمد من ${Math.round(oldOpening).toLocaleString("en-US")} ج.م إلى ${cleanCash.toLocaleString("en-US")} ج.م.`
-    );
-  }
-
-  // 5. مطابقة عداد الدرج (dayTwentyNineDrawerTrackedCash) مع السيولة الحالية
-  if ( typeof p.dayTwentyNineDrawerTrackedCash === "number" ) {
+  // 6. مطابقة عداد الدرج (dayTwentyNineDrawerTrackedCash) مع السيولة الحالية
+  if (typeof p.dayTwentyNineDrawerTrackedCash === "number") {
     p.dayTwentyNineDrawerTrackedCash = cleanCash;
     p.dayTwentyNineDrawerRemainder = 0;
   }
 
-  // 6. رفع مؤشر تقدم القصة (storyIndex) بمقدار +2 لتخطي قفل المزامنة (storyDifference === 0) بعد اليوم 63
+  // 7. رفع رتبة النسخة المحلية (Zn(t) + storyIndex) لتتفوق رسمياً في compareSaves و syncHigherLocalNow و promoteLocalOverServer
+  if (dayNum === 44 && p.daySixtyTwoStarted) {
+    if (!p.daySixtyTwoDecisionResults || typeof p.daySixtyTwoDecisionResults !== "object" || Array.isArray(p.daySixtyTwoDecisionResults)) {
+      p.daySixtyTwoDecisionResults = {};
+    }
+    const currentDecisionCount = Object.values(p.daySixtyTwoDecisionResults).filter(v => String(v || "").trim()).length;
+    const targetDecisionCount = Math.min(38, Math.max(14, currentDecisionCount + 2));
+    let idx = 1;
+    while (Object.values(p.daySixtyTwoDecisionResults).filter(v => String(v || "").trim()).length < targetDecisionCount) {
+      const syncKey = `_syncBoost_${idx++}`;
+      if (!p.daySixtyTwoDecisionResults[syncKey]) {
+        p.daySixtyTwoDecisionResults[syncKey] = "approve";
+      }
+    }
+  }
+
   if (dayNum >= 2) {
     const oldStoryIdx = Math.max(11, Math.floor(Number(p.storyIndex) || 11));
     p.storyIndex = Math.min(999, oldStoryIdx + 2);
     logs.push(
-      `تنشيط مؤشر تقدم المزامنة السحابية (storyIndex: ${oldStoryIdx} ⬅ ${p.storyIndex}) لإجبار السيرفر على قبول السيولة الكاملة (${cleanCash.toLocaleString("en-US")} ج.م) فوراً.`
+      `رفع رتبة تقدم النسخة المحلية (Rank Boost) لضمان تفوق نسخة جهازك على نسخة السيرفر العالقة عند الضغط على «اعتماد النسخة الأقوى ⬅ اعتمد نسخة جهازي».`
     );
   }
 
@@ -287,7 +334,7 @@ function inspectSaveFile(rawText) {
     atmIssues.push(`يوجد ${orphanReceipts.length} إيصال شراء ATM في السجل بينما الشبكة فارغة (يسبب خطأ تعارض عند المزامنة).`);
   }
 
-  // فحص مشكلة سيولة الاستثمار بعد اليوم 63 وفجوة dayCashCheckpoints
+  // فحص مشكلة سيولة الاستثمار بعد اليوم 63 وفجوة dayCashCheckpoints (openingCash & closingCash)
   const publicDay = getPublicDay(p);
   const dayKey = String(Math.max(1, Math.min(44, Math.floor(Number(p.day) || 1))));
   const cp = (p.dayCashCheckpoints && p.dayCashCheckpoints[dayKey]) || {};
@@ -329,10 +376,13 @@ function inspectSaveFile(rawText) {
   const activeInvestments = Array.from(invSubscribed.values());
   const activeInvestedTotal = activeInvestments.reduce((acc, x) => acc + x.amount, 0);
 
-  const hasCheckpointGap = checkpointOpeningCash < currentCash - 1 || checkpointClosingCash !== currentCash;
+  const isOpeningLow = checkpointOpeningCash < currentCash - 1;
+  const isClosingDesynced = Math.round(checkpointClosingCash) !== Math.round(currentCash);
+  const hasFractionalStartCash = typeof p.daySixtyTwoStartCash === "number" && !Number.isInteger(p.daySixtyTwoStartCash);
+  const hasCheckpointGap = isOpeningLow || isClosingDesynced || hasFractionalStartCash;
   const liquiditySyncWarning = (
     hasCheckpointGap ||
-    (String(p.phase || "").endsWith("-complete") && (corpConvCash > 0 || atmLocalCashAfterStory > 0 || ledger.length >= 520))
+    (String(p.phase || "").endsWith("-complete") && (corpConvCash > 0 || atmLocalCashAfterStory > 0 || ledger.length >= 200))
   );
 
   return {
@@ -347,6 +397,9 @@ function inspectSaveFile(rawText) {
     cash: currentCash,
     checkpointOpeningCash,
     checkpointClosingCash,
+    isOpeningLow,
+    isClosingDesynced,
+    hasFractionalStartCash,
     hasCheckpointGap,
     reputation: Number(p.reputation) || 0,
     ledgerCount: ledger.length,
@@ -497,13 +550,13 @@ function repairSaveFile(rawText, mode = "full") {
     });
     actionsTaken.push(...liqLogs);
 
-    const nextRev = Math.max(0, Math.floor(Number(save.saveRevision) || Number(p.saveRevision) || 0)) + 15;
-    const nextTime = Math.max(Date.now(), Math.floor(Number(save.updatedAt) || Number(p.lastSavedAt) || 0) + 5000);
+    const nextRev = Math.max(0, Math.floor(Number(save.saveRevision) || Number(p.saveRevision) || 0)) + 500;
+    const nextTime = Math.max(Date.now(), Math.floor(Number(save.updatedAt) || Number(p.lastSavedAt) || 0) + 10000);
     save.saveRevision = nextRev;
     p.saveRevision = nextRev;
     save.updatedAt = nextTime;
     p.lastSavedAt = nextTime;
-    actionsTaken.push(`رفع رقم الحفظ (saveRevision) إلى ${nextRev} لضمان اعتماد النسخة فوراً على السيرفر.`);
+    actionsTaken.push(`رفع رقم المراجعة (saveRevision) بمقدار +500 إلى ${nextRev} لضمان تفوق نسخة جهازك على السيرفر.`);
   }
 
   // 3. حساب البصمة الرسمية SHA-256 (JSON.stringify المباشر)
@@ -669,12 +722,13 @@ function buildRepairKeyboard() {
 
 function formatDiagnosticReport(info, fileName) {
   const lines = [
-    `🏦 <b>تقرير فحص ملف حفظ بنك هارون (v3.2)</b>`,
+    `🏦 <b>تقرير فحص ملف حفظ بنك هارون (v3.3)</b>`,
     `📄 <b>الملف:</b> <code>${fileName}</code>`,
     ``,
     `🔹 <b>اليوم الفعلي:</b> اليوم ${info.publicDay} (المرحلة: <code>${info.phase}</code>)`,
     `🔹 <b>السيولة الظاهرة في البنك:</b> <b>${Math.round(info.cash).toLocaleString("en-US")} ج.م</b>`,
-    `🔹 <b>حد السيولة في نقطة الفحص (openingCash):</b> <b>${Math.round(info.checkpointOpeningCash).toLocaleString("en-US")} ج.م</b> ${info.hasCheckpointGap ? "⚠️ (منخفض ويمنع الاستثمار الكامل!)" : "✅"}`,
+    `🔹 <b>نقطة افتتاح اليوم (openingCash):</b> <b>${Math.round(info.checkpointOpeningCash).toLocaleString("en-US")} ج.م</b> ${info.isOpeningLow ? "⚠️ (أقل من السيولة الحالية!)" : "✅"}`,
+    `🔹 <b>نقطة إقفال اليوم (closingCash):</b> <b>${Math.round(info.checkpointClosingCash).toLocaleString("en-US")} ج.م</b> ${info.isClosingDesynced ? "⚠️ (متوقفة عند رصيد قديم ولا تطابق سيولة البنك!)" : "✅"}`,
     `🔹 <b>رقم المراجعة (Revision):</b> <code>${info.saveRevision}</code>`,
     `🔹 <b>حجم السجل (Ledger):</b> ${info.ledgerCount} / 520 حركة`,
     `🔹 <b>بصمة الأمان (SHA-256):</b> ${info.checksumMatch ? "✅ سليمة ومطابقة" : "❌ غير مطابقة (تحتاج إعادة ختم)"}`,
@@ -695,12 +749,20 @@ function formatDiagnosticReport(info, fileName) {
   }
 
   if (info.liquiditySyncWarning) {
+    lines.push(``, `💡 <b>تشخيص مشكلة «السيولة غير الكافية» في الاستثمار (v3.3):</b>`);
+    if (info.isClosingDesynced) {
+      lines.push(
+        `• رصيد إقفال اليوم المسجل في نقطة الفحص (<code>closingCash</code>) متوقف عند <b>${Math.round(info.checkpointClosingCash).toLocaleString("en-US")} ج.م</b> بينما سيولة البنك الفعلية <b>${Math.round(info.cash).toLocaleString("en-US")} ج.م</b> (بسبب بيع عملات للبنك المركزي أو جمع أرباح ATM بعد آخر مزامنة استثمار).`
+      );
+    }
+    if (info.isOpeningLow) {
+      lines.push(
+        `• حد افتتاح اليوم (<code>openingCash</code>) متوقف عند <b>${Math.round(info.checkpointOpeningCash).toLocaleString("en-US")} ج.م</b> وهو أقل من سيولة البنك الفعلية.`
+      );
+    }
     lines.push(
-      ``,
-      `💡 <b>تشخيص مشكلة «السيولة غير الكافية» في الاستثمار:</b>`,
-      `• حد السيولة المسجل في نقطة بداية اليوم (<code>openingCash</code>) متوقف عند <b>${Math.round(info.checkpointOpeningCash).toLocaleString("en-US")} ج.م</b> بينما سيولة البنك الفعلية <b>${Math.round(info.cash).toLocaleString("en-US")} ج.م</b>.`,
-      `• كما أن ثبات مؤشر اليوم بعد اليوم 63 يمنع السيرفر من تحديث رصيدك في شاشة «استثمارات هارونية».`,
-      `• اضغط على زر <b>«💰 إصلاح مشكلة السيولة غير الكافية في الاستثمار»</b> أو <b>«🔧 إصلاح شامل»</b> بالأسفل لمطابقة نقاط الفحص وتنشيط المزامنة السحابية فوراً!`
+      `• <b>السبب الأهم على السيرفر:</b> شاشة «استثمارات هارونية» تقرأ السيولة من <b>نسخة السيرفر</b> وليس من متصفحك! وعند استعادة ملف الحفظ، توقف اللعبة الرفع التلقائي للسيرفر بسبب قفل التعارض (<code>diverged</code>).`,
+      `• اضغط على زر <b>«💰 إصلاح مشكلة السيولة غير الكافية في الاستثمار»</b> بالأسفل، ثم بعد استعادة الملف داخل اللعبة افتح <b>«حساب بنك هارون» ⬅ «اعتماد النسخة الأقوى» ⬅ «اعتمد نسخة جهازي»</b> ليقرأ السيرفر سيولتك الكاملة فوراً!`
     );
   }
 
@@ -738,7 +800,7 @@ async function handleUpdate(update) {
       const outName = `${baseName}-Fixed-${mode}.haroun.json`;
 
       const captionLines = [
-        `✅ <b>تم إصلاح الملف بنجاح!</b>`,
+        `✅ <b>تم إصلاح الملف بنجاح (v3.3)!</b>`,
         `💰 <b>السيولة المعتمدة للبنك والاستثمار:</b> ${Math.round(result.finalSave.payload.cash).toLocaleString("en-US")} ج.م`,
         `🔢 <b>رقم الحفظ الجديد:</b> <code>${result.finalSave.saveRevision}</code>`,
         `🔐 <b>البصمة:</b> <code>${result.checksum.slice(0, 20)}...</code>`,
@@ -746,9 +808,12 @@ async function handleUpdate(update) {
         `🛠 <b>الإصلاحات التي تمت:</b>`,
         ...result.actionsTaken.map(a => `• ${a}`),
         ``,
-        `📌 <b>الخطوة التالية داخل اللعبة:</b>`,
-        `1️⃣ حمّل هذا الملف وادخل اللعبة ⬅ <b>نسخة تقدم على الجهاز</b> ⬅ <b>استرجاع التقدم من ملف</b>.`,
-        `2️⃣ بعد إعادة تشغيل اللعبة، افتح <b>حساب اللاعب</b> واضغط <b>«مزامنة التقدم»</b> لكي يقرأ سيرفر الاستثمارات سيولتك الكاملة فوراً.`
+        `🚨 <b>خطوة إجبارية داخل اللعبة لكي يقرأ سيرفر الاستثمار السيولة:</b>`,
+        `1️⃣ ادخل اللعبة ⬅ <b>الإعدادات</b> ⬅ <b>استرجاع التقدم من ملف</b> واختر هذا الملف.`,
+        `2️⃣ من القائمة الرئيسية افتح <b>«حساب بنك هارون»</b>.`,
+        `3️⃣ اضغط <b>«اعتماد النسخة الأقوى»</b> (أو <b>«مزامنة الآن»</b>).`,
+        `4️⃣ إذا ظهرت رسالة إيصالات جمعيات/مكافآت من السيرفر اضغط <b>«ادمج المبالغ دي في جهازي ثم كمّل»</b>، ثم اضغط <b>«اعتمد نسخة جهازي»</b>!`,
+        `5️⃣ الآن ادخل <b>«استثمارات هارونية»</b> وستعمل معك السيولة الكاملة فوراً.`
       ];
 
       await sendTelegramDocument(
@@ -767,10 +832,10 @@ async function handleUpdate(update) {
 
     if (msg.text && (msg.text.startsWith("/start") || msg.text.startsWith("/help"))) {
       const welcome = [
-        `أهلاً بك في <b>بوت فحص وإصلاح ملفات حفظ بنك هارون (v3.2)</b> 🏦✨`,
+        `أهلاً بك في <b>بوت فحص وإصلاح ملفات حفظ بنك هارون (v3.3)</b> 🏦✨`,
         ``,
         `أرسل لي أي ملف حفظ (<code>.haroun</code> أو <code>.json</code>) وسأقوم فوراً بـ:`,
-        `1️⃣ حل مشكلة <b>«السيولة غير الكافية» في الاستثمار</b> رغم وجود سيولة في البنك (إصلاح فجوة <code>openingCash</code> في <code>dayCashCheckpoints</code> وتنشيط مؤشر مزامنة اليوم 63).`,
+        `1️⃣ حل مشكلة <b>«السيولة غير الكافية» في الاستثمار</b> رغم وجود سيولة في البنك (تصحيح <code>closingCash / openingCash</code> ورفع رتبة نسخة الجهاز لتحديث نسخة السيرفر عبر «اعتمد نسخة جهازي»).`,
         `2️⃣ فحص البصمة الرسمية (SHA-256) وإصلاح خطأ <i>«بصمة ملف التقدم غير مطابقة»</i>.`,
         `3️⃣ استعادة إيصالات ماكينات الـ ATM المفقودة أو حذف الماكينات التالفة للحصول على تعويض إلياس.`,
         ``,
@@ -851,7 +916,7 @@ async function startPolling() {
   pollingActive = true;
 
   await callTelegramApi("deleteWebhook", { drop_pending_updates: false }).catch(() => {});
-  console.log("✅ البوت يعمل الآن بنظام Long Polling وجاهز لاستقبال ملفات الحفظ على تيليجرام!");
+  console.log("✅ البوت (v3.3) يعمل الآن بنظام Long Polling وجاهز لاستقبال ملفات الحفظ على تيليجرام!");
 
   while (pollingActive) {
     try {
@@ -892,7 +957,7 @@ const server = http.createServer((req, res) => {
   }
 
   res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-  res.end("🏦 Bank Haroun Save Doctor Telegram Bot v3.2 is running!\n");
+  res.end("🏦 Bank Haroun Save Doctor Telegram Bot v3.3 is running!\n");
 });
 
 server.listen(PORT, async () => {
