@@ -1,6 +1,6 @@
 {
   "name": "haroun-save-bot",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "main": "Bank_Haroun_Telegram_Bot.js",
   "scripts": {
     "start": "node Bank_Haroun_Telegram_Bot.js"
