@@ -181,18 +181,6 @@ function applyDeepLiquidityFix(p, options = { refundActiveInvestments: false }) 
       }
     }
   }
-  if (Array.isArray(p.ledger)) {
-    let roundedLedgerItems = 0;
-    for (const item of p.ledger) {
-      if (item && typeof item.amount === "number" && !Number.isInteger(item.amount)) {
-        item.amount = Math.round(item.amount);
-        roundedLedgerItems++;
-      }
-    }
-    if (roundedLedgerItems > 0) {
-      logs.push(`تقريب الكسور العشرية في ${roundedLedgerItems} حركة داخل السجل المالي (ledger).`);
-    }
-  }
   if (p.atmNetworkV1 && Array.isArray(p.atmNetworkV1.machines) && p.atmCount !== p.atmNetworkV1.machines.length) {
     p.atmCount = p.atmNetworkV1.machines.length;
     logs.push(`مطابقة عداد ماكينات الـ ATM (atmCount) إلى ${p.atmCount} ماكينة.`);
@@ -651,7 +639,7 @@ function callTelegramApi(method, payload) {
   });
 }
 
-function sendTelegramDocument(chatId, fileName, fileBuffer, caption, replyMarkup = null) {
+function sendTelegramDocument(chatId, fileName, fileBuffer, caption, replyMarkup = null, replyToMessageId = null) {
   return new Promise((resolve, reject) => {
     const boundary = "----BankHarounBotBoundary" + crypto.randomBytes(12).toString("hex");
     const parts = [];
@@ -665,14 +653,31 @@ function sendTelegramDocument(chatId, fileName, fileBuffer, caption, replyMarkup
       );
     };
 
+    // حد تيليجرام الأقصى لوصف الملف (caption) هو 1024 حرفاً فقط!
+    // إذا زاد النص عن 1000 حرف يتجاهل تيليجرام إرسال الملف تماماً (media_caption_too_long)
+    let safeCaption = String(caption || "");
+    if (safeCaption.length > 980) {
+      safeCaption = safeCaption.slice(0, 960) + "\n...";
+      // إزالة أي وسم HTML مفتوح في نهاية القص
+      const lastOpen = safeCaption.lastIndexOf("<");
+      const lastClose = safeCaption.lastIndexOf(">");
+      if (lastOpen > lastClose) {
+        safeCaption = safeCaption.slice(0, lastOpen);
+      }
+    }
+
+    const safeFileName = String(fileName || "Bank-Haroun-Save-Fixed.haroun.json")
+      .replace(/["\\\r\n]/g, "_");
+
     addField("chat_id", String(chatId));
-    if (caption) addField("caption", caption);
+    if (safeCaption) addField("caption", safeCaption);
     addField("parse_mode", "HTML");
+    if (replyToMessageId) addField("reply_to_message_id", String(replyToMessageId));
     if (replyMarkup) addField("reply_markup", JSON.stringify(replyMarkup));
 
     parts.push(
       Buffer.from(
-        `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${fileName}"\r\nContent-Type: application/json\r\n\r\n`,
+        `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${safeFileName}"\r\nContent-Type: application/json\r\n\r\n`,
         "utf8"
       )
     );
@@ -819,11 +824,28 @@ async function handleUpdate(update) {
       if (!chatId || !data.startsWith("fix:")) return;
       const mode = data.slice(4);
 
-      const session = userSessions.get(chatId);
+      let session = userSessions.get(chatId);
+      // إذا أُعيد تشغيل السيرفر المجاني، نستعيد الملف تلقائياً من الرسالة الأصلية المربوطة بالتقرير!
+      if (!session && cb.message?.reply_to_message?.document) {
+        try {
+          const origDoc = cb.message.reply_to_message.document;
+          const rawText = await downloadTelegramFile(origDoc.file_id);
+          session = {
+            fileName: origDoc.file_name || "Bank-Haroun-Save.haroun.json",
+            rawText,
+            uploadedAt: Date.now(),
+            origMsgId: cb.message.reply_to_message.message_id
+          };
+          userSessions.set(chatId, session);
+        } catch (e) {
+          console.error("Failed to auto-recover document from reply_to_message:", e);
+        }
+      }
+
       if (!session) {
         await callTelegramApi("answerCallbackQuery", {
           callback_query_id: cb.id,
-          text: "⚠️ انتهت الجلسة أو لم يتم العثور على الملف. أرسل ملف الحفظ مرة أخرى.",
+          text: "⚠️ انتهت الجلسة بسبب إعادة تشغيل السيرفر. أرسل ملف الحفظ مرة أخرى.",
           show_alert: true
         });
         return;
@@ -831,37 +853,68 @@ async function handleUpdate(update) {
 
       await callTelegramApi("answerCallbackQuery", {
         callback_query_id: cb.id,
-        text: "⏳ جاري إصلاح السيولة والملف وختم البصمة الرسمية..."
+        text: "⏳ جاري إصلاح الملف وإرساله..."
       });
 
       const result = repairSaveFile(session.rawText, mode);
       const baseName = session.fileName.replace(/\.json$/i, "").replace(/\.haroun$/i, "");
       const outName = `${baseName}-Fixed-${mode}.haroun.json`;
 
-      const captionLines = [
-        `✅ <b>تم إصلاح الملف بنجاح (v3.3)!</b>`,
-        `💰 <b>السيولة المعتمدة للبنك والاستثمار:</b> ${Math.round(result.finalSave.payload.cash).toLocaleString("en-US")} ج.م`,
-        `🔢 <b>رقم الحفظ الجديد:</b> <code>${result.finalSave.saveRevision}</code>`,
-        `🔐 <b>البصمة:</b> <code>${result.checksum.slice(0, 20)}...</code>`,
+      // ملاحظة هامة: حد تيليجرام الأقصى لـ caption في sendDocument هو 1024 حرفاً فقط!
+      // لذلك نجعل وصف الملف مختصراً وأقل من 800 حرف دائماً حتى لا يرفضه تيليجرام
+      const shortCaptionLines = [
+        `✅ <b>تم إصلاح الملف بنجاح (v3.4)!</b>`,
+        `💰 <b>السيولة المعتمدة:</b> ${Math.round(result.finalSave.payload.cash).toLocaleString("en-US")} ج.م`,
+        `🔢 <b>رقم المراجعة الجديد:</b> <code>${result.finalSave.saveRevision}</code>`,
+        `🔐 <b>البصمة:</b> <code>${result.checksum.slice(0, 16)}...</code>`,
         ``,
-        `🛠 <b>الإصلاحات التي تمت:</b>`,
-        ...result.actionsTaken.map(a => `• ${a}`),
-        ``,
-        `🚨 <b>خطوة إجبارية داخل اللعبة لكي يقرأ سيرفر الاستثمار السيولة:</b>`,
-        `1️⃣ ادخل اللعبة ⬅ <b>الإعدادات</b> ⬅ <b>استرجاع التقدم من ملف</b> واختر هذا الملف.`,
-        `2️⃣ من القائمة الرئيسية افتح <b>«حساب بنك هارون»</b>.`,
-        `3️⃣ اضغط <b>«اعتماد النسخة الأقوى»</b> (أو <b>«مزامنة الآن»</b>).`,
-        `4️⃣ إذا ظهرت رسالة إيصالات جمعيات/مكافآت من السيرفر اضغط <b>«ادمج المبالغ دي في جهازي ثم كمّل»</b>، ثم اضغط <b>«اعتمد نسخة جهازي»</b>!`,
-        `5️⃣ الآن ادخل <b>«استثمارات هارونية»</b> وستعمل معك السيولة الكاملة فوراً.`
+        `🚨 <b>خطوة إجبارية بعد استعادة الملف داخل اللعبة:</b>`,
+        `1️⃣ افتح <b>«حساب بنك هارون»</b> من القائمة الرئيسية.`,
+        `2️⃣ اضغط <b>«اعتماد النسخة الأقوى»</b> (أو <b>«مزامنة الآن»</b>).`,
+        `3️⃣ اضغط <b>«اعتمد نسخة جهازي»</b> لتحديث رصيدك على السيرفر، ثم ادخل <b>«استثمارات هارونية»</b>!`
       ];
 
-      await sendTelegramDocument(
+      const sendRes = await sendTelegramDocument(
         chatId,
         outName,
         Buffer.from(result.repairedJson, "utf8"),
-        captionLines.join("\n"),
-        buildRepairKeyboard()
+        shortCaptionLines.join("\n"),
+        buildRepairKeyboard(),
+        session.origMsgId || null
       );
+
+      if (!sendRes || !sendRes.ok) {
+        console.error("sendDocument failed:", sendRes);
+        // محاولة إرسال بدون تنسيق HTML أو أزرار في حال وجود أي حرف خاص في اسم الملف
+        const retryRes = await sendTelegramDocument(
+          chatId,
+          "Bank-Haroun-Save-Fixed.haroun.json",
+          Buffer.from(result.repairedJson, "utf8"),
+          "✅ تم إصلاح الملف بنجاح! استعد الملف ثم افتح «حساب بنك هارون ⬅ اعتماد النسخة الأقوى ⬅ اعتمد نسخة جهازي».",
+          null,
+          null
+        );
+        if (!retryRes || !retryRes.ok) {
+          await callTelegramApi("sendMessage", {
+            chat_id: chatId,
+            text: `❌ تعذر إرسال الملف عبر تيليجرام: ${(sendRes && sendRes.description) || "خطأ غير معروف"}`
+          });
+          return;
+        }
+      }
+
+      // إرسال تفاصيل الإصلاحات في رسالة نصية منفصلة إذا كانت كثيرة
+      if (result.actionsTaken.length > 0) {
+        const detailsText = [
+          `🛠 <b>تفاصيل الإصلاحات التي تمت على الملف:</b>`,
+          ...result.actionsTaken.map(a => `• ${a}`)
+        ].join("\n");
+        await callTelegramApi("sendMessage", {
+          chat_id: chatId,
+          text: detailsText,
+          parse_mode: "HTML"
+        });
+      }
       return;
     }
 
@@ -920,7 +973,8 @@ async function handleUpdate(update) {
       userSessions.set(chatId, {
         fileName,
         rawText,
-        uploadedAt: Date.now()
+        uploadedAt: Date.now(),
+        origMsgId: msg.message_id
       });
 
       const reportHtml = formatDiagnosticReport(report, fileName);
@@ -928,6 +982,7 @@ async function handleUpdate(update) {
         chat_id: chatId,
         text: reportHtml,
         parse_mode: "HTML",
+        reply_to_message_id: msg.message_id,
         reply_markup: buildRepairKeyboard()
       });
       return;
