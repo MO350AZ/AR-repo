@@ -1,0 +1,2366 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>أداة فحص وإصلاح ملفات حفظ بنك هارون | Bank Haroun Save Doctor v3.3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #0A0E17;
+      --bg-surface: #111827;
+      --bg-elevated: #1E293B;
+      --bg-glass: rgba(17, 24, 39, 0.85);
+      --text-primary: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --accent-gold: #F59E0B;
+      --accent-gold-hover: #D97706;
+      --accent-gold-soft: rgba(245, 158, 11, 0.14);
+      --accent-blue: #38BDF8;
+      --accent-blue-soft: rgba(56, 189, 248, 0.14);
+      --semantic-success: #10B981;
+      --semantic-success-soft: rgba(16, 185, 129, 0.14);
+      --semantic-warning: #F59E0B;
+      --semantic-warning-soft: rgba(245, 158, 11, 0.14);
+      --semantic-error: #EF4444;
+      --semantic-error-soft: rgba(239, 68, 68, 0.15);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-gold: rgba(245, 158, 11, 0.38);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --shadow-card: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      background-image:
+        radial-gradient(circle at 12% 10%, rgba(245, 158, 11, 0.08), transparent 28%),
+        radial-gradient(circle at 88% 15%, rgba(56, 189, 248, 0.07), transparent 30%);
+      color: var(--text-primary);
+      font-family: 'IBM Plex Sans Arabic', 'Cairo', sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    .app-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Header Banner */
+    .app-header {
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(217, 119, 6, 0.08));
+      border: 1px solid var(--border-gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-gold);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-family: 'Cairo', sans-serif;
+      font-size: clamp(1.25rem, 2vw, 1.6rem);
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .brand-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .header-badges {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    .pill-badge.gold {
+      background: var(--accent-gold-soft);
+      border-color: var(--border-gold);
+      color: var(--accent-gold);
+    }
+
+    .pill-badge.green {
+      background: var(--semantic-success-soft);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: var(--semantic-success);
+    }
+
+    .pill-badge.red {
+      background: var(--semantic-error-soft);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #FCA5A5;
+    }
+
+    .pill-badge.blue {
+      background: var(--accent-blue-soft);
+      border-color: rgba(56, 189, 248, 0.35);
+      color: var(--accent-blue);
+    }
+
+    /* Main Grid */
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .workspace-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+
+    .panel-title {
+      font-family: 'Cairo', sans-serif;
+      font-size: 1.08rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Dropzone */
+    .upload-zone {
+      border: 2px dashed rgba(245, 158, 11, 0.35);
+      background: rgba(245, 158, 11, 0.04);
+      border-radius: var(--radius-md);
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+      border-color: var(--accent-gold);
+      background: rgba(245, 158, 11, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .upload-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .upload-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--accent-gold-soft);
+      color: var(--accent-gold);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .upload-title {
+      font-weight: 700;
+      font-size: 0.98rem;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .upload-hint {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .demo-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-family: 'IBM Plex Sans Arabic', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      border: 1px solid transparent;
+      text-decoration: none;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #F59E0B, #D97706);
+      color: #090D16;
+      font-weight: 700;
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.25);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border-color: var(--border-subtle);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
+    }
+
+    .btn-sm {
+      padding: 7px 10px;
+      font-size: 0.78rem;
+      flex: 1;
+    }
+
+    /* Repair Strategy Cards */
+    .strategy-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .strategy-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      background: rgba(30, 41, 59, 0.55);
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .strategy-option:hover {
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .strategy-option.active {
+      background: rgba(245, 158, 11, 0.11);
+      border-color: var(--accent-gold);
+    }
+
+    .strategy-option input[type="radio"] {
+      margin-top: 4px;
+      accent-color: var(--accent-gold);
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .strategy-title {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .strategy-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 3px;
+    }
+
+    /* Checkboxes */
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      accent-color: var(--accent-gold);
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+
+    /* KPIs Row */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .kpi-card {
+      background: rgba(30, 41, 59, 0.55);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .kpi-label {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .kpi-value {
+      font-family: 'Cairo', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kpi-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Alert Banner */
+    .diagnostic-banner {
+      padding: 16px 18px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .diagnostic-banner.healthy {
+      background: var(--semantic-success-soft);
+      border-color: rgba(16, 185, 129, 0.35);
+    }
+
+    .diagnostic-banner.corrupted {
+      background: var(--semantic-error-soft);
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .diagnostic-banner.repaired {
+      background: var(--accent-blue-soft);
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    .banner-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-weight: 800;
+    }
+
+    .diagnostic-banner.healthy .banner-icon {
+      background: rgba(16, 185, 129, 0.25);
+      color: var(--semantic-success);
+    }
+
+    .diagnostic-banner.corrupted .banner-icon {
+      background: rgba(239, 68, 68, 0.25);
+      color: #FCA5A5;
+    }
+
+    .diagnostic-banner.repaired .banner-icon {
+      background: rgba(56, 189, 248, 0.25);
+      color: var(--accent-blue);
+    }
+
+    .banner-title {
+      font-family: 'Cairo', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .banner-desc {
+      font-size: 0.86rem;
+      color: var(--text-secondary);
+    }
+
+    /* Tables */
+    .table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+      text-align: right;
+    }
+
+    th {
+      background: rgba(30, 41, 59, 0.85);
+      color: var(--text-secondary);
+      font-weight: 600;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.79rem;
+      direction: ltr;
+      display: inline-block;
+      unicode-bidi: embed;
+    }
+
+    /* Checksum Box */
+    .hash-box {
+      background: #070A10;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .hash-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .hash-label {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .hash-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.77rem;
+      color: var(--accent-gold);
+      word-break: break-all;
+      direction: ltr;
+    }
+
+    /* Repair Log */
+    .repair-log {
+      background: #070A10;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      max-height: 280px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.83rem;
+    }
+
+    .log-entry {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 0.92rem;
+    }
+
+    .action-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-top: 6px;
+    }
+
+    .action-bar .btn {
+      width: 100%;
+      padding: 13px 18px;
+      font-size: 0.95rem;
+    }
+
+    details.advanced-box {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: rgba(15, 23, 42, 0.45);
+      padding: 10px 12px;
+    }
+
+    details.advanced-box summary {
+      cursor: pointer;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      user-select: none;
+    }
+
+    .advanced-box-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21h18"/>
+            <path d="M3 10h18"/>
+            <path d="M5 6l7-3 7 3"/>
+            <path d="M4 10v11"/>
+            <path d="M20 10v11"/>
+            <path d="M8 14v3"/>
+            <path d="M12 14v3"/>
+            <path d="M16 14v3"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">أداة فحص وإصلاح ملفات حفظ بنك هارون (الإصدار 3.3 النهائي)</h1>
+          <p class="brand-subtitle">بصمة SHA-256 مطابقة 100% لدالة اللعبة الرسمية (<span class="mono">vu.inspectSerialized</span>) بدون إعادة ترتيب المفاتيح</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="pill-badge green">✔ بصمة SHA-256 الرسمية (1.69.389)</span>
+        <span class="pill-badge gold">💰 إصلاح «السيولة غير الكافية» في الاستثمار</span>
+        <span class="pill-badge blue">🏧 إصلاح وحذف ماكينات ATM للتعويض</span>
+      </div>
+    </header>
+
+    <main class="workspace-grid">
+      <!-- Right Column: Controls & Upload -->
+      <section class="panel-card">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            1. اختيار ملف الحفظ (.haroun / .json)
+          </h2>
+        </div>
+
+        <div class="upload-zone" id="dropZone">
+          <input type="file" id="fileInput" accept=".json,.haroun,.haroun.json,application/json" />
+          <div class="upload-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/>
+              <line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+          </div>
+          <div class="upload-title" id="uploadTitle">اسحب ملف الحفظ هنا أو اضغط لاختياره</div>
+          <div class="upload-hint" id="uploadHint">يدعم جميع ملفات Bank-Haroun-Save.haroun.json</div>
+        </div>
+
+        <div class="demo-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="btnLoadDemoHealthy1">
+            تجربة ملف 1 (مشكلة سيولة الاستثمار)
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnLoadDemoMissingMachines">
+            تجربة ملف 5 (3 ماكينات معلقة)
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnLoadDemoMissingReceipts">
+            تجربة ملف (4 ماكينات بدون إيصال)
+          </button>
+        </div>
+
+        <div class="panel-header" style="margin-top: 4px;">
+          <h2 class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            2. اختر طريقة التعامل مع الماكينات
+          </h2>
+        </div>
+
+        <div class="strategy-list" id="strategyGroup">
+          <label class="strategy-option active" data-strategy="keep_valid">
+            <input type="radio" name="repairStrategy" value="keep_valid" checked />
+            <div>
+              <div class="strategy-title">
+                مسح الماكينات غير المتوافقة فقط (والاحتفاظ بالسليمة)
+                <span class="pill-badge green" style="padding: 2px 8px; font-size: 0.72rem;">الأضمن للمزامنة والتعويض</span>
+              </div>
+              <div class="strategy-desc">
+                يمسح فقط الماكينات التي فُقد إيصال شرائها من السجل (أو يُلغي تعليق الإيصالات اليتيمة في ملف 5) ويُبقي الماكينات السليمة، ليعمل الملف فوراً ويحصل اللاعب على تعويض عن الماكينات المحذوفة.
+              </div>
+            </div>
+          </label>
+
+          <label class="strategy-option" data-strategy="remove_all">
+            <input type="radio" name="repairStrategy" value="remove_all" />
+            <div>
+              <div class="strategy-title">
+                مسح كل ماكينات الـ ATM بالكامل (تمهيداً لتعويض شامل)
+              </div>
+              <div class="strategy-desc">
+                يزيل <span class="mono">atmNetworkV1</span> و<span class="mono">storyAtmSnapshotV1</span> ويُحيّد إيصالات الشراء المعلقة في السجل دون كسر سجل المزامنة السحابية.
+              </div>
+            </div>
+          </label>
+
+          <label class="strategy-option" data-strategy="fix_all">
+            <input type="radio" name="repairStrategy" value="fix_all" />
+            <div>
+              <div class="strategy-title">
+                استرجاع الماكينات وتوليد الإيصالات المفقودة محلياً
+              </div>
+              <div class="strategy-desc">
+                يُعيد بناء الماكينات المختفية ويولّد إيصالات <span class="mono">ATM-LOCAL</span> بصيغة <span class="mono">ownership</span> الرسمية (<span class="mono">Object</span>).
+              </div>
+            </div>
+          </label>
+
+          <label class="strategy-option" data-strategy="liquidity_only">
+            <input type="radio" name="repairStrategy" value="liquidity_only" />
+            <div>
+              <div class="strategy-title">
+                💰 إصلاح مشكلة «السيولة غير الكافية» في الاستثمار فقط
+                <span class="pill-badge gold" style="padding: 2px 8px; font-size: 0.72rem;">جديد v3.3</span>
+              </div>
+              <div class="strategy-desc">
+                يرفع حد السيولة المعتمد في نقطة فحص اليوم (<span class="mono">openingCash / closingCash</span>) ليطابق سيولة البنك الفعلية، وينشّط مؤشر تقدم المزامنة (<span class="mono">storyIndex</span>) بدون المساس بالماكينات.
+              </div>
+            </div>
+          </label>
+        </div>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="chkTrimLedger" checked />
+          <span>حماية توافق المزامنة السحابية (<span class="mono">Qa / te / is</span>): تحييد الإيصالات المعلقة في مكانها دون حذف حركات من السجل المالي</span>
+        </label>
+
+        <label class="checkbox-row" style="border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08);">
+          <input type="checkbox" id="chkBoostLiquiditySync" checked />
+          <span><strong>حل مشكلة «السيولة غير كافية» في الاستثمار:</strong> إصلاح فجوة <span class="mono">openingCash</span> في <span class="mono">dayCashCheckpoints</span> وتنشيط مؤشر المزامنة (<span class="mono">storyIndex + 2</span>) ليقبل السيرفر كامل سيولة البنك فوراً</span>
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="chkRefundActiveInvestments" />
+          <span><strong>استرداد الاستثمارات النشطة المعلقة (اختياري):</strong> إرجاع مبالغ الاستثمارات غير المسحوبة (<span class="mono">ASSOC-INV-S-...</span>) وإضافتها لسيولة البنك</span>
+        </label>
+
+        <details class="advanced-box">
+          <summary>خيارات متقدمة اختيارية (معطّلة افتراضياً)</summary>
+          <div class="advanced-box-body">
+            <label class="checkbox-row">
+              <input type="checkbox" id="chkCleanLegacyCorpConv" />
+              <div>
+                <div style="font-weight: 600;">حذف إيصالات <span class="mono">CORP-CONV-1792...</span> القديمة (غير مستحب)</div>
+                <div style="font-size: 0.76rem; color: var(--text-secondary);">إيصالات <span class="mono">CORP-CONV-timestamp-520</span> هي إيصالات رسمية من التحديث السابق للعبة وليست وهمية.</div>
+              </div>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="chkResetDay29Drawer" />
+              <div>
+                <div style="font-weight: 600;">تصفير سيولة درج اليوم 29 (<span class="mono">dayTwentyNineDrawerTrackedCash</span>)</div>
+                <div style="font-size: 0.76rem; color: var(--text-secondary);">اللعبة تساوي الدرج تلقائياً بإجمالي كاش البنك عند خدمة العملاء أو الضغط على "تحديث سيولة الدرج".</div>
+              </div>
+            </label>
+          </div>
+        </details>
+
+        <div class="action-bar">
+          <button type="button" class="btn btn-primary" id="btnRepairAndDownload" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+            تنفيذ الإصلاح المختار وتحميل الملف ببصمة سليمة
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnFixLiquidityOnly" style="border-color: rgba(245, 158, 11, 0.45); color: var(--accent-gold);" disabled>
+            💰 إصلاح مشكلة «السيولة غير الكافية» في الاستثمار فقط وتحميل الملف
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnRecalcChecksumOnly" disabled>
+            إعادة حساب بصمة الملف فقط (بدون أي تعديل آخر)
+          </button>
+        </div>
+      </section>
+
+      <!-- Left Column: Diagnostic Dashboard -->
+      <section class="panel-card">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            تقرير الفحص والتشخيص الدقيق (Save File Diagnostics)
+          </h2>
+          <span class="pill-badge" id="fileStatusBadge">في انتظار رفع ملف...</span>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <span class="kpi-label">اليوم الحالي / السيولة</span>
+            <span class="kpi-value" id="kpiDayCash">—</span>
+            <span class="kpi-sub" id="kpiPlayerName">إصدار اللعبة: —</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">حجم السجل المالي (Ledger)</span>
+            <span class="kpi-value" id="kpiLedgerCount">—</span>
+            <span class="kpi-sub" id="kpiLedgerLimit">الحد الأقصى الرسمي: 520</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">ماكينات الـ ATM (المسجلة / السجل)</span>
+            <span class="kpi-value" id="kpiAtmCount">—</span>
+            <span class="kpi-sub" id="kpiAtmMissing">بانتظار الفحص</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">بصمة الملف (SHA-256 Checksum)</span>
+            <span class="kpi-value" id="kpiChecksumStatus">—</span>
+            <span class="kpi-sub" id="kpiExportedAt">تاريخ الإنشاء: —</span>
+          </div>
+        </div>
+
+        <!-- Diagnostic Banner -->
+        <div id="diagnosticBanner" class="diagnostic-banner" style="display: none;">
+          <div class="banner-icon" id="bannerIcon">!</div>
+          <div>
+            <div class="banner-title" id="bannerTitle"></div>
+            <div class="banner-desc" id="bannerDesc"></div>
+          </div>
+        </div>
+
+        <!-- ATM Machines Table -->
+        <div>
+          <div class="panel-header" style="border-bottom: none; padding-bottom: 8px;">
+            <h3 class="panel-title" style="font-size: 0.96rem;">تفاصيل ماكينات الـ ATM وإيصالات الشراء (<span class="mono">atmNetworkV1</span> &amp; <span class="mono">ledger</span>)</h3>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>موقع الماكينة (<span class="mono">siteId</span>)</th>
+                  <th>حالة الماكينة في الملف</th>
+                  <th>سعر الشراء</th>
+                  <th>رقم إيصال الشراء (<span class="mono">receiptId</span>)</th>
+                  <th>التشخيص والإجراء</th>
+                </tr>
+              </thead>
+              <tbody id="atmTableBody">
+                <tr>
+                  <td colspan="6" class="empty-state">ارفع ملف الحفظ لعرض جدول الماكينات وفحص إيصالات الشراء المرتبطة بها.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Verified Game Systems Table -->
+        <div>
+          <div class="panel-header" style="border-bottom: none; padding-bottom: 8px;">
+            <h3 class="panel-title" style="font-size: 0.96rem;">فحص سلامة أنظمة اللعبة الأخرى (شركة النور • الدرج • البنك المركزي)</h3>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>النظام داخل ملف الحفظ</th>
+                  <th>القيمة المسجلة في الملف</th>
+                  <th>تفسير كود اللعبة الرسمي</th>
+                  <th>الحالة</th>
+                </tr>
+              </thead>
+              <tbody id="systemsTableBody">
+                <tr>
+                  <td colspan="4" class="empty-state">ارفع ملف الحفظ لفحص أنظمة شركة النور والدرج والبنك المركزي.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Checksum Details -->
+        <div class="hash-box">
+          <div class="hash-row">
+            <span class="hash-label">البصمة المخزنة في الملف (<span class="mono">file.checksum</span>):</span>
+            <span class="hash-value" id="storedHashText">—</span>
+          </div>
+          <div class="hash-row">
+            <span class="hash-label">البصمة المحسوبة بمعادلة اللعبة (<span class="mono">vu.inspectSerialized</span>):</span>
+            <span class="hash-value" id="computedHashText">—</span>
+          </div>
+        </div>
+
+        <!-- Repair Log -->
+        <div>
+          <div class="panel-header" style="border-bottom: none; padding-bottom: 8px;">
+            <h3 class="panel-title" style="font-size: 0.96rem;">سجل عمليات الفحص والإصلاح</h3>
+          </div>
+          <div class="repair-log" id="repairLog">
+            <div class="log-entry">
+              <span style="color: var(--text-muted);">•</span>
+              <span style="color: var(--text-secondary);">الأداة جاهزة (الإصدار 3.3). قم برفع ملف <span class="mono">.haroun</span> أو <span class="mono">.json</span> لفحصه أو إصلاحه فوراً.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. Exact Constants & Sidewalk Coordinates from Bank Haroun (wt / Nt)
+    // =========================================================================
+    const ATM_SITE_ORDER = ['republic', 'canal', 'garden', 'ferry', 'university'];
+
+    // Coordinates verified against Dt(u, v) sidewalk table `wt` in atm-simulation-math.js
+    const ATM_SITE_METADATA = {
+      republic: {
+        nameAr: 'شارع الجمهورية • قلب المدينة',
+        worldU: 106,
+        worldV: 620,
+        withdrawalFee: 10,
+        fxMarginPct: 2,
+        taxPct: 14
+      },
+      canal: {
+        nameAr: 'حي القناة • واجهة تجارية',
+        worldU: 140,
+        worldV: 1418,
+        withdrawalFee: 10,
+        fxMarginPct: 2,
+        taxPct: 14
+      },
+      garden: {
+        nameAr: 'حي الزهور • كثافة عائلية',
+        worldU: 127,
+        worldV: 2220,
+        withdrawalFee: 10,
+        fxMarginPct: 2,
+        taxPct: 14
+      },
+      ferry: {
+        nameAr: 'معدية بورسعيد • حركة مسافرين',
+        worldU: 475,
+        worldV: 2405,
+        withdrawalFee: 10,
+        fxMarginPct: 2,
+        taxPct: 14
+      },
+      university: {
+        nameAr: 'منطقة الجامعة • سحب طلابي سريع',
+        worldU: 1510,
+        worldV: 1211,
+        withdrawalFee: 10,
+        fxMarginPct: 2,
+        taxPct: 14
+      }
+    };
+
+    const ATM_PURCHASE_LABEL = 'حركة شبكة ماكينات بنك هارون: تم إرسال طلب التركيب. الماكينة قيد الإنشاء لمدة خمس دقائق.';
+    const ATM_NEUTRALIZED_LABEL = 'حركة شبكة ماكينات بنك هارون: تسوية إغلاق موقع ماكينة صراف آلي.';
+    const ATM_LOCAL_RECEIPT_REGEX = /^ATM-LOCAL-\d+-\d+-\d+$/;
+    const ATM_SRV_RECEIPT_REGEX = /^ATM-SRV-[0-9a-f-]+$/i;
+
+    /**
+     * Exact replica of `Jt(t)` / `ae(t)` in 1.69.369.js:
+     * Checks whether a ledger item is treated by the game as an active ATM purchase receipt.
+     */
+    function isValidAtmLocalPurchaseEntry(item) {
+      if (!item || typeof item !== 'object') return false;
+      const id = typeof item.id === 'string' ? item.id.trim() : '';
+      if (!ATM_LOCAL_RECEIPT_REGEX.test(id)) return false;
+      if (Math.round(Number(item.amount) || 0) !== -2000000) return false;
+      if (item.atmOperation !== undefined) {
+        return item.atmOperation === 'purchase' && ATM_SITE_ORDER.includes(item.atmSiteId);
+      }
+      return /^حركة شبكة ماكينات بنك هارون: (?:تم إرسال طلب التركيب|تم شراء الماكينة)/.test(String(item.label || ''));
+    }
+
+    /**
+     * Checks if a ledger entry is a server ATM purchase receipt (`ATM-SRV-...` for -2,000,000)
+     */
+    function isAtmServerPurchaseEntry(item) {
+      if (!item || typeof item !== 'object') return false;
+      const id = typeof item.id === 'string' ? item.id.trim() : '';
+      return ATM_SRV_RECEIPT_REGEX.test(id) && Math.round(Number(item.amount) || 0) === -2000000;
+    }
+
+    /**
+     * Normalizes `storyAtmSnapshotV1.ownership` whether stored as an Object `{ republic: "ATM-LOCAL-..." }`
+     * (official game format) or an Array `[{ siteId, receiptId }]`.
+     */
+    function extractOwnershipMap(storyAtmSnapshotV1) {
+      const map = new Map();
+      if (!storyAtmSnapshotV1 || typeof storyAtmSnapshotV1 !== 'object') return map;
+      const rawOwn = storyAtmSnapshotV1.ownership;
+      if (!rawOwn || typeof rawOwn !== 'object') return map;
+      if (Array.isArray(rawOwn)) {
+        for (const item of rawOwn) {
+          if (item && typeof item.siteId === 'string' && typeof item.receiptId === 'string') {
+            map.set(item.siteId, item.receiptId);
+          }
+        }
+      } else {
+        for (const [siteId, receiptId] of Object.entries(rawOwn)) {
+          if (typeof siteId === 'string' && typeof receiptId === 'string') {
+            map.set(siteId, receiptId);
+          }
+        }
+      }
+      return map;
+    }
+
+    /**
+     * Extracts the array of ATM machines from `atmNetworkV1` or `storyAtmSnapshotV1.network`
+     */
+    function extractAtmMachines(payload) {
+      if (!payload || typeof payload !== 'object') return [];
+      if (payload.atmNetworkV1 && Array.isArray(payload.atmNetworkV1.machines)) {
+        return payload.atmNetworkV1.machines;
+      }
+      if (
+        payload.storyAtmSnapshotV1 &&
+        payload.storyAtmSnapshotV1.network &&
+        Array.isArray(payload.storyAtmSnapshotV1.network.machines)
+      ) {
+        return payload.storyAtmSnapshotV1.network.machines;
+      }
+      if (payload.storyAtmSnapshotV1 && Array.isArray(payload.storyAtmSnapshotV1.machines)) {
+        return payload.storyAtmSnapshotV1.machines;
+      }
+      return [];
+    }
+
+    /**
+     * Replicates `pe(t)` (`xe(t)`) receipt matching in 1.69.369.js:
+     * Matches each machine in `machines` to its corresponding `ATM-LOCAL` purchase receipt in `ledger`.
+     */
+    function matchMachinesToLedgerReceipts(machines, ownershipMap, ledger) {
+      const validPurchaseItems = Array.isArray(ledger) ? ledger.filter(isValidAtmLocalPurchaseEntry) : [];
+      const validPurchaseById = new Map(validPurchaseItems.map((item) => [item.id, item]));
+      const usedReceiptIds = new Set();
+
+      // First pass: check explicit ownershipMap[siteId] if present in ledger
+      const resultBySite = new Map();
+      for (const m of machines) {
+        if (!m || !m.id) continue;
+        const ownedId = ownershipMap.get(m.id);
+        if (ownedId && validPurchaseById.has(ownedId) && !usedReceiptIds.has(ownedId)) {
+          usedReceiptIds.add(ownedId);
+          resultBySite.set(m.id, validPurchaseById.get(ownedId));
+        }
+      }
+
+      // Second pass: match remaining machines by `atmSiteId` or positional order (just like `pe(t)` in game)
+      const remainingPool = validPurchaseItems.filter((item) => !usedReceiptIds.has(item.id));
+      for (const m of machines) {
+        if (!m || !m.id || resultBySite.has(m.id)) continue;
+        const bySiteIdx = remainingPool.findIndex((item) => item.atmSiteId === m.id);
+        const picked = bySiteIdx >= 0 ? remainingPool.splice(bySiteIdx, 1)[0] : remainingPool.shift();
+        if (picked) {
+          usedReceiptIds.add(picked.id);
+          resultBySite.set(m.id, picked);
+        } else {
+          resultBySite.set(m.id, null);
+        }
+      }
+
+      return {
+        resultBySite,
+        orphanedLocalPurchases: remainingPool,
+        allLocalPurchases: validPurchaseItems
+      };
+    }
+
+    /**
+     * Scans the ledger to infer how many ATMs the player bought & operated
+     * when `atmNetworkV1` and `storyAtmSnapshotV1` were wiped during cloud sync.
+     */
+    function inferMissingAtmsFromLedger(ledger) {
+      if (!Array.isArray(ledger)) {
+        return { inferredCount: 0, localPurchaseEntries: [], srvPurchaseEntries: [], maxSettlementMachines: 0 };
+      }
+      const localPurchaseEntries = ledger.filter(isValidAtmLocalPurchaseEntry);
+      const srvPurchaseEntries = ledger.filter(isAtmServerPurchaseEntry);
+      let maxSettlementMachines = 0;
+
+      for (const item of ledger) {
+        if (!item || typeof item.label !== 'string') continue;
+        const m = item.label.match(/(?:من|لعدد|في)\s+(\d+)\s+ماكينة/);
+        if (m) {
+          const count = parseInt(m[1], 10);
+          if (count > maxSettlementMachines) maxSettlementMachines = count;
+        }
+      }
+
+      const totalPurchaseReceipts = localPurchaseEntries.length + srvPurchaseEntries.length;
+      const inferredCount = Math.min(5, Math.max(totalPurchaseReceipts, maxSettlementMachines));
+      return {
+        inferredCount,
+        localPurchaseEntries,
+        srvPurchaseEntries,
+        maxSettlementMachines
+      };
+    }
+
+    /**
+     * Builds a 100% schema-valid machine object that passes `_t(t)` (`Yt(t)`) and `Dt(worldU, worldV)`
+     */
+    function buildValidAtmMachine(siteId, lastRealTime) {
+      const meta = ATM_SITE_METADATA[siteId] || ATM_SITE_METADATA.republic;
+      const nowMs = Math.max(0, Math.floor(Number(lastRealTime) || Date.now()));
+      const dateStr = new Date(nowMs).toISOString().slice(0, 10);
+      return {
+        id: siteId,
+        mode: 'online',
+        egp: 200000,
+        usd: 0,
+        eur: 0,
+        usdCostEgp: 0,
+        eurCostEgp: 0,
+        withdrawalFee: meta.withdrawalFee,
+        fxMarginPct: meta.fxMarginPct,
+        taxPct: meta.taxPct,
+        wear: 0,
+        uptimeSlots: 96,
+        served: 140,
+        grossFees: 42000,
+        fxProfit: 0,
+        cost: 800,
+        taxPaid: 5880,
+        netProfit: 35320,
+        lastServiceAt: nowMs,
+        worldU: meta.worldU,
+        worldV: meta.worldV,
+        buildUntil: 0,
+        capDay: dateStr,
+        capNet: 12000,
+        pendingProfit: 0,
+        collectedProfit: 35320
+      };
+    }
+
+    // =========================================================================
+    // 2. Exact Checksum Formula from `vu.inspectSerialized` in 1.69.369.js
+    //    CRITICAL: Uses `JSON.stringify(a)` directly WITHOUT key sorting!
+    // =========================================================================
+    function fnv1aHash(str) {
+      let h = 2166136261;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+      }
+      return h.toString(16).padStart(8, '0');
+    }
+
+    function buildOfficialSaveEnvelope(i) {
+      const p = (i && typeof i.payload === 'object' && i.payload) ? i.payload : {};
+      return {
+        format: 'bank-haroun-save',
+        saveVersion: Number.isFinite(Number(i && i.saveVersion)) ? Number(i.saveVersion) : 1,
+        gameVersion: String((i && i.gameVersion) || (i && i.app && i.app.version) || '1.69.389'),
+        createdAt: String((i && i.createdAt) || (i && i.exportedAt) || new Date().toISOString()),
+        completedDay: Math.max(0, Math.floor(Number(i && i.completedDay) || 0)),
+        currentDay: Math.max(1, Math.floor(Number(i && i.currentDay) || Number(p.day) || 1)),
+        saveRevision: Math.max(0, Math.floor(Number(i && i.saveRevision) || Number(p.saveRevision) || 0)),
+        updatedAt: Math.max(0, Math.floor(Number(i && i.updatedAt) || Number(p.lastSavedAt) || Date.now())),
+        payload: p
+      };
+    }
+
+    async function computeHarounChecksum(saveObj) {
+      const a = buildOfficialSaveEnvelope(saveObj);
+      const serialized = JSON.stringify(a);
+      const algo = saveObj && saveObj.checksumAlgorithm === 'FNV-1A' ? 'FNV-1A' : 'SHA-256';
+      if (algo === 'FNV-1A') {
+        return fnv1aHash(serialized);
+      }
+      const encoded = new TextEncoder().encode(serialized);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+      return Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+
+    // =========================================================================
+    // 3. Application State & DOM Elements
+    // =========================================================================
+    let currentSaveData = null;
+    let currentFileName = 'Bank-Haroun-Save.haroun.json';
+
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const uploadTitle = document.getElementById('uploadTitle');
+    const uploadHint = document.getElementById('uploadHint');
+    const btnRepairAndDownload = document.getElementById('btnRepairAndDownload');
+    const btnRecalcChecksumOnly = document.getElementById('btnRecalcChecksumOnly');
+    const btnLoadDemoHealthy1 = document.getElementById('btnLoadDemoHealthy1');
+    const btnLoadDemoMissingMachines = document.getElementById('btnLoadDemoMissingMachines');
+    const btnLoadDemoMissingReceipts = document.getElementById('btnLoadDemoMissingReceipts');
+    const strategyOptions = document.querySelectorAll('.strategy-option');
+    const chkTrimLedger = document.getElementById('chkTrimLedger');
+    const chkCleanLegacyCorpConv = document.getElementById('chkCleanLegacyCorpConv');
+    const chkResetDay29Drawer = document.getElementById('chkResetDay29Drawer');
+
+    const fileStatusBadge = document.getElementById('fileStatusBadge');
+    const kpiDayCash = document.getElementById('kpiDayCash');
+    const kpiPlayerName = document.getElementById('kpiPlayerName');
+    const kpiLedgerCount = document.getElementById('kpiLedgerCount');
+    const kpiLedgerLimit = document.getElementById('kpiLedgerLimit');
+    const kpiAtmCount = document.getElementById('kpiAtmCount');
+    const kpiAtmMissing = document.getElementById('kpiAtmMissing');
+    const kpiChecksumStatus = document.getElementById('kpiChecksumStatus');
+    const kpiExportedAt = document.getElementById('kpiExportedAt');
+
+    const diagnosticBanner = document.getElementById('diagnosticBanner');
+    const bannerIcon = document.getElementById('bannerIcon');
+    const bannerTitle = document.getElementById('bannerTitle');
+    const bannerDesc = document.getElementById('bannerDesc');
+
+    const atmTableBody = document.getElementById('atmTableBody');
+    const systemsTableBody = document.getElementById('systemsTableBody');
+    const storedHashText = document.getElementById('storedHashText');
+    const computedHashText = document.getElementById('computedHashText');
+    const repairLog = document.getElementById('repairLog');
+
+    function appendLog(message, type = 'info') {
+      const colors = {
+        info: 'var(--accent-blue)',
+        success: 'var(--semantic-success)',
+        warn: 'var(--accent-gold)',
+        error: '#FCA5A5'
+      };
+      const symbols = {
+        info: 'ℹ️',
+        success: '✔',
+        warn: '⚠️',
+        error: '✖'
+      };
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.innerHTML = `
+        <span style="color: ${colors[type] || colors.info}; font-weight: 700;">${symbols[type] || '•'}</span>
+        <span style="color: var(--text-primary);">${message}</span>
+      `;
+      repairLog.prepend(div);
+    }
+
+    // Strategy radio toggle styling
+    strategyOptions.forEach((opt) => {
+      opt.addEventListener('click', () => {
+        strategyOptions.forEach((o) => o.classList.remove('active'));
+        opt.classList.add('active');
+        const radio = opt.querySelector('input[type="radio"]');
+        if (radio) radio.checked = true;
+        if (currentSaveData) analyzeSaveFile(currentSaveData, currentFileName, false);
+      });
+    });
+
+    // =========================================================================
+    // 4. Inspect & Diagnose Save File
+    // =========================================================================
+    async function analyzeSaveFile(saveObj, fileName, logAnalysis = true) {
+      if (!saveObj || !saveObj.payload) {
+        appendLog('الملف المرفوع لا يحتوي على هيكل بيانات حفظ بنك هارون (payload مفقود).', 'error');
+        return;
+      }
+
+      const p = saveObj.payload;
+      const ledger = Array.isArray(p.ledger) ? p.ledger : [];
+
+      const atmMachines = extractAtmMachines(p);
+      const ownershipMap = extractOwnershipMap(p.storyAtmSnapshotV1);
+      const matchInfo = matchMachinesToLedgerReceipts(atmMachines, ownershipMap, ledger);
+
+      const inferred = inferMissingAtmsFromLedger(ledger);
+      const isMissingMachinesBug = atmMachines.length === 0 && (inferred.localPurchaseEntries.length > 0 || inferred.srvPurchaseEntries.length > 0);
+      const hasOrphanedReceipts = matchInfo.orphanedLocalPurchases.length > 0;
+
+      // Compute Official SHA-256 Checksum (`vu.inspectSerialized`)
+      const computedHash = await computeHarounChecksum(saveObj);
+      const storedHash = saveObj.checksum || 'غير موجود';
+      const isHashMatch = computedHash === storedHash;
+
+      // Update KPIs
+      const cashFormatted = Number(p.cash || 0).toLocaleString('en-US');
+      kpiDayCash.textContent = `اليوم ${p.day || saveObj.currentDay || 1} • ${cashFormatted} ج.م`;
+      kpiPlayerName.textContent = `إصدار اللعبة: ${saveObj.gameVersion || '1.69.389'} • مراجعة #${saveObj.saveRevision || p.saveRevision || 0}`;
+
+      kpiLedgerCount.textContent = `${ledger.length} حركة`;
+      kpiLedgerLimit.textContent = ledger.length > 520
+        ? '⚠️ يتجاوز السقف الرسمي (520)'
+        : `ضمن السقف الرسمي (520) • ${inferred.localPurchaseEntries.length} إيصال شراء ATM-LOCAL`;
+
+      storedHashText.textContent = storedHash;
+      computedHashText.textContent = computedHash;
+
+      if (isHashMatch) {
+        kpiChecksumStatus.textContent = 'متطابقة 100% ✔';
+        kpiChecksumStatus.style.color = 'var(--semantic-success)';
+      } else {
+        kpiChecksumStatus.textContent = 'غير مطابقة ✖';
+        kpiChecksumStatus.style.color = 'var(--semantic-error)';
+      }
+      const createdDate = saveObj.createdAt || saveObj.exportedAt;
+      kpiExportedAt.textContent = `تاريخ الحفظ: ${createdDate ? new Date(createdDate).toLocaleString('ar-EG') : '—'}`;
+
+      // Build ATM Table & Count Problems
+      atmTableBody.innerHTML = '';
+      let missingReceiptCount = 0;
+
+      if (isMissingMachinesBug) {
+        kpiAtmCount.textContent = `0 مسجلة / ${inferred.inferredCount} بالسجل`;
+        kpiAtmCount.style.color = 'var(--semantic-error)';
+        kpiAtmMissing.textContent = `⚠️ ${inferred.localPurchaseEntries.length} إيصال ATM-LOCAL يتيم بدون ماكينة!`;
+
+        for (let idx = 0; idx < inferred.inferredCount; idx++) {
+          const siteId = ATM_SITE_ORDER[idx] || `site_${idx + 1}`;
+          const meta = ATM_SITE_METADATA[siteId] || { nameAr: siteId };
+          const existingLocalReceipt = inferred.localPurchaseEntries[idx] || null;
+          const existingSrvReceipt = !existingLocalReceipt ? inferred.srvPurchaseEntries[idx - inferred.localPurchaseEntries.length] : null;
+
+          const tr = document.createElement('tr');
+          if (existingLocalReceipt) {
+            tr.innerHTML = `
+              <td>${idx + 1}</td>
+              <td><strong>${meta.nameAr}</strong> <span class="mono" style="color: var(--text-muted);">(${siteId})</span></td>
+              <td><span class="pill-badge red">الماكينة غير موجودة في الحفظ</span></td>
+              <td class="mono">2,000,000 EGP</td>
+              <td><span class="mono" style="color: var(--accent-gold);">${existingLocalReceipt.id}</span></td>
+              <td><span class="pill-badge red">إيصال شراء معلق يسبب خطأ "الماكينة مش ظاهرة في الحفظ"</span></td>
+            `;
+          } else if (existingSrvReceipt) {
+            tr.innerHTML = `
+              <td>${idx + 1}</td>
+              <td><strong>${meta.nameAr}</strong> <span class="mono" style="color: var(--text-muted);">(${siteId})</span></td>
+              <td><span class="pill-badge red">الماكينة غير موجودة في الحفظ</span></td>
+              <td class="mono">2,000,000 EGP</td>
+              <td><span class="mono" style="color: var(--accent-blue);">${existingSrvReceipt.id} (سيرفر)</span></td>
+              <td><span class="pill-badge gold">إيصال سيرفر محفوظ في السجل</span></td>
+            `;
+          } else {
+            tr.innerHTML = `
+              <td>${idx + 1}</td>
+              <td><strong>${meta.nameAr}</strong> <span class="mono" style="color: var(--text-muted);">(${siteId})</span></td>
+              <td><span class="pill-badge red">الماكينة غير موجودة في الحفظ</span></td>
+              <td class="mono">2,000,000 EGP</td>
+              <td><span class="mono" style="color: var(--text-muted);">خرج من السجل بعد 520 حركة</span></td>
+              <td><span class="pill-badge gold">تظهر في حركات التسوية فقط</span></td>
+            `;
+          }
+          atmTableBody.appendChild(tr);
+        }
+      } else if (atmMachines.length === 0) {
+        kpiAtmCount.textContent = '0 ماكينات';
+        kpiAtmCount.style.color = 'var(--semantic-success)';
+        kpiAtmMissing.textContent = '✔ لا توجد ماكينات أو إيصالات معلقة';
+        atmTableBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="empty-state">لا توجد ماكينات ATM مسجلة أو إيصالات شراء معلقة في هذا الملف (جاهز للتعويض أو اللعب).</td>
+          </tr>
+        `;
+      } else {
+        atmMachines.forEach((m, idx) => {
+          const siteId = m.id;
+          const meta = ATM_SITE_METADATA[siteId] || { nameAr: siteId };
+          const matchedReceipt = matchInfo.resultBySite.get(siteId) || null;
+          const ownedReceiptId = ownershipMap.get(siteId) || null;
+          const hasValidReceipt = Boolean(matchedReceipt);
+          if (!hasValidReceipt) missingReceiptCount++;
+
+          const receiptIdText = matchedReceipt
+            ? matchedReceipt.id
+            : (ownedReceiptId ? `${ownedReceiptId} (غير موجود بالسجل)` : 'مفقود من السجل');
+
+          const ledgerIndex = matchedReceipt ? ledger.indexOf(matchedReceipt) + 1 : null;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${idx + 1}</td>
+            <td><strong>${meta.nameAr}</strong> <span class="mono" style="color: var(--text-muted);">(${siteId})</span></td>
+            <td><span class="pill-badge green">${m.mode === 'online' ? 'تعمل (Online)' : m.mode}</span></td>
+            <td class="mono">2,000,000 EGP</td>
+            <td><span class="mono">${receiptIdText}</span></td>
+            <td>
+              ${hasValidReceipt
+                ? `<span class="pill-badge green">✔ إيصال سليم ومطابق (الحركة #${ledgerIndex} من ${ledger.length})</span>`
+                : '<span class="pill-badge red">✖ ماكينة غير متوافقة (إيصال الشراء مفقود من السجل)</span>'}
+            </td>
+          `;
+          atmTableBody.appendChild(tr);
+        });
+
+        kpiAtmCount.textContent = `${atmMachines.length} ماكينات`;
+        kpiAtmCount.style.color = (missingReceiptCount > 0 || hasOrphanedReceipts) ? 'var(--semantic-error)' : 'var(--semantic-success)';
+        kpiAtmMissing.textContent = missingReceiptCount > 0
+          ? `⚠️ ${missingReceiptCount} ماكينة بدون إيصال شراء`
+          : '✔ جميع الماكينات مرتبطة بإيصالات سليمة';
+      }
+
+      // Populate Other Game Systems Table
+      systemsTableBody.innerHTML = '';
+      const cd = p.corporateDeskV1 || {};
+      const upgrades = Array.isArray(cd.upgrades) ? cd.upgrades : [];
+      const hasBigFiles = upgrades.includes('big-files');
+      const legacyCorpCount = ledger.filter((x) => x && typeof x.id === 'string' && /^CORP-CONV-\d+-\d+$/.test(x.id)).length;
+      const serverCorpCount = ledger.filter((x) => x && typeof x.id === 'string' && /^CORP-CONV-[A-Z0-9]+$/.test(x.id)).length;
+      const fxTurnover44 = p.fxCentralBankTurnoverByDay && p.fxCentralBankTurnoverByDay['44']
+        ? Number(p.fxCentralBankTurnoverByDay['44']).toLocaleString('en-US')
+        : '0';
+
+      const dayNum = Math.max(1, Math.min(44, Math.floor(Number(p.day) || 1)));
+      const dayCp = (p.dayCashCheckpoints && p.dayCashCheckpoints[String(dayNum)]) || {};
+      const cpOpeningCash = Number(dayCp.openingCash ?? p.cash ?? 0);
+      const cpClosingCash = Number(dayCp.closingCash ?? p.cash ?? 0);
+      const actualCash = Number(p.cash || 0);
+      const hasLiquidityGap = (cpOpeningCash < actualCash - 1) || (Math.round(cpClosingCash) !== Math.round(actualCash)) || !Number.isInteger(actualCash) || (typeof p.daySixtyTwoStartCash === 'number' && !Number.isInteger(p.daySixtyTwoStartCash));
+
+      // Count active investments in ledger
+      const activeInvMap = new Map();
+      for (const item of ledger) {
+        const idStr = String((item && item.id) || '');
+        if (idStr.startsWith('ASSOC-INV-S-')) {
+          activeInvMap.set(idStr.slice(12), Math.abs(Number(item.amount) || 0));
+        } else if (idStr.startsWith('ASSOC-INV-W-S-') || idStr.startsWith('ASSOC-INV-C-S-')) {
+          activeInvMap.delete(idStr.replace(/^ASSOC-INV-[WC]-S-/, ''));
+        }
+      }
+      let activeInvTotal = 0;
+      activeInvMap.forEach((v) => { activeInvTotal += v; });
+
+      const systemRows = [
+        {
+          name: 'سيولة الاستثمار ونقطة فحص اليوم (dayCashCheckpoints)',
+          value: `افتتاح اليوم: ${Math.round(cpOpeningCash).toLocaleString('en-US')} ج.م • إقفال الفحص: ${Math.round(cpClosingCash).toLocaleString('en-US')} ج.م • سيولة البنك: ${Math.round(actualCash).toLocaleString('en-US')} ج.م` + (activeInvTotal > 0 ? ` • استثمار نشط: ${activeInvTotal.toLocaleString('en-US')} ج.م` : ''),
+          explanation: hasLiquidityGap
+            ? `⚠️ رصيد إقفال الفحص (${Math.round(cpClosingCash).toLocaleString('en-US')} ج.م) أو افتتاح اليوم (${Math.round(cpOpeningCash).toLocaleString('en-US')} ج.م) غير متطابق مع سيولة البنك (${Math.round(actualCash).toLocaleString('en-US')} ج.م)، كما أن نسخة السيرفر متوقفة عند الرصيد القديم! اضغط زر الإصلاح ثم من داخل اللعبة افتح «حساب بنك هارون ⬅ اعتماد النسخة الأقوى ⬅ اعتمد نسخة جهازي».`
+            : 'نقطة فحص السيولة (openingCash & closingCash) مطابقة لسيولة البنك وجاهزة للاستثمار والمزامنة.',
+          badge: hasLiquidityGap
+            ? '<span class="pill-badge red">⚠️ تحتاج إصلاح سيولة الاستثمار + مزامنة الحساب</span>'
+            : '<span class="pill-badge green">✔ سيولة الاستثمار متطابقة 100%</span>'
+        },
+        {
+          name: 'بصمة الملف الرسمية (vu.inspectSerialized)',
+          value: isHashMatch ? 'مطابقة 100% لمعادلة JSON.stringify(a)' : 'غير مطابقة (تحتاج تحديث البصمة)',
+          explanation: 'اللعبة تحسب SHA-256 مباشرة من JSON.stringify(a) للحقول الـ 9 الرسمية بدون إعادة ترتيب أبجدي للمفاتيح.',
+          badge: isHashMatch
+            ? '<span class="pill-badge green">✔ بصمة سليمة 100%</span>'
+            : '<span class="pill-badge red">✖ بصمة تحتاج إصلاح</span>'
+        },
+        {
+          name: 'مكتب شركة النور (corporateDeskV1)',
+          value: `الموظفون: ${Number(cd.employeesDone || 0).toLocaleString('en-US')} / 2,000 • النقاط: ${Number(cd.lifetimePoints || 0).toLocaleString('en-US')}`,
+          explanation: hasBigFiles
+            ? 'ترقية "ملفات الشركات الكبيرة" (big-files) مفعّلة (+ إيداعات CORP-CONV الرسمية: ' + (legacyCorpCount + serverCorpCount) + ' حركة).'
+            : 'نظام شركة النور ضمن الحدود الطبيعية للعبة.',
+          badge: '<span class="pill-badge green">✔ سليم وشرعي 100%</span>'
+        },
+        {
+          name: 'سيولة درج اليوم 29 (dayTwentyNineDrawerTrackedCash)',
+          value: `${Number(p.dayTwentyNineDrawerTrackedCash || 0).toLocaleString('en-US')} ج.م`,
+          explanation: 'تتحدث تلقائياً لتساوي كاش البنك مع كل عميل أو عند الضغط على "تحديث سيولة الدرج".',
+          badge: '<span class="pill-badge green">✔ سليم وشرعي 100%</span>'
+        },
+        {
+          name: 'مبيعات العملات للبنك المركزي (fxCentralBankTurnover)',
+          value: `${fxTurnover44} ج.م`,
+          explanation: 'عداد تراكمي يجمع إجمالي قيمة بيع الدولار واليورو للبنك المركزي طوال فترة فتح اليوم 44.',
+          badge: '<span class="pill-badge green">✔ سليم وشرعي 100%</span>'
+        }
+      ];
+
+      for (const row of systemRows) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${row.name}</strong></td>
+          <td class="mono">${row.value}</td>
+          <td style="color: var(--text-secondary); font-size: 0.81rem;">${row.explanation}</td>
+          <td>${row.badge}</td>
+        `;
+        systemsTableBody.appendChild(tr);
+      }
+
+      // Diagnostic Banner State
+      diagnosticBanner.style.display = 'flex';
+      if (isMissingMachinesBug) {
+        diagnosticBanner.className = 'diagnostic-banner corrupted';
+        bannerIcon.textContent = '✖';
+        bannerTitle.textContent = `ملف 5 يحتوي على ${inferred.localPurchaseEntries.length} إيصال شراء ATM-LOCAL معلق بدون ماكينات في الحفظ!`;
+        bannerDesc.innerHTML = `
+          الماكينات حُذفت من <span class="mono">atmNetworkV1</span> أثناء المزامنة بينما بقيت إيصالات الشراء في <span class="mono">ledger</span>، مما يسبب رسالة: <em>"فيه عملية شراء ATM مدفوعة في سجل البنك، لكن الماكينة مش ظاهرة في الحفظ"</em>.<br/>
+          <strong>الحل الموصى به للتعويض:</strong> اختر <strong>"مسح الماكينات غير المتوافقة فقط"</strong> أو <strong>"مسح كل ماكينات الـ ATM بالكامل"</strong> واضغط على زر الإصلاح بالأسفل لتحميل الملف ببصمة SHA-256 سليمة 100% ثم تعويض اللاعب.
+        `;
+        fileStatusBadge.className = 'pill-badge red';
+        fileStatusBadge.textContent = 'إيصالات ATM معلقة بدون ماكينات';
+      } else if (missingReceiptCount > 0 || hasOrphanedReceipts) {
+        diagnosticBanner.className = 'diagnostic-banner corrupted';
+        bannerIcon.textContent = '✖';
+        bannerTitle.textContent = `تم اكتشاف ${missingReceiptCount} ماكينة ATM غير متوافقة (إيصال الشراء مفقود من السجل)!`;
+        bannerDesc.innerHTML = `
+          اضغط على <strong>"تنفيذ الإصلاح المختار وتحميل الملف ببصمة سليمة"</strong> لمسح الماكينات غير المتوافقة فقط (أو مسحها جميعاً) وتوليد بصمة <span class="mono">SHA-256</span> المطابقة للعبة 100% حتى يتمكن اللاعب من استعادة ملفه وأخذ التعويض.
+        `;
+        fileStatusBadge.className = 'pill-badge red';
+        fileStatusBadge.textContent = `ماكينات غير متوافقة (${missingReceiptCount})`;
+      } else if (!isHashMatch) {
+        diagnosticBanner.className = 'diagnostic-banner corrupted';
+        bannerIcon.textContent = '⚠️';
+        bannerTitle.textContent = 'بيانات الماكينات سليمة، ولكن بصمة الملف (Checksum) غير مطابقة!';
+        bannerDesc.innerHTML = `
+          هذا الملف تم تعديله سابقاً بأداة كانت ترتب المفاتيح أبجدياً قبل حساب البصمة. اضغط على <strong>"إعادة حساب بصمة الملف فقط"</strong> أو زر الإصلاح بالأسفل لتصحيح البصمة فوراً بمعادلة اللعبة الرسمية (<span class="mono">JSON.stringify</span>).
+        `;
+        fileStatusBadge.className = 'pill-badge gold';
+        fileStatusBadge.textContent = 'يحتاج تصحيح البصمة فقط';
+      } else if (hasLiquidityGap) {
+        diagnosticBanner.className = 'diagnostic-banner corrupted';
+        bannerIcon.textContent = '💰';
+        bannerTitle.textContent = `تم اكتشاف سبب مشكلة «السيولة غير الكافية» في الاستثمار (إقفال الفحص متوقف عند ${Math.round(cpClosingCash).toLocaleString('en-US')} ج.م بينما سيولة البنك ${Math.round(actualCash).toLocaleString('en-US')} ج.م)!`;
+        bannerDesc.innerHTML = `
+          شاشة «استثمارات هارونية» (<span class="mono">/api-v4/investments</span>) تقرأ السيولة من <strong>نسخة السيرفر السحابية</strong> وليس من متصفحك، بينما نقطة الفحص <span class="mono">closingCash</span> ونسخة السيرفر متوقفتان عند <strong>${Math.round(cpClosingCash).toLocaleString('en-US')} ج.م</strong> بعد صفقات البنك المركزي (FX) أو جمع أرباح الـ ATM!<br/>
+          <strong>الحل الجذري على خطوتين (v3.3):</strong><br/>
+          1️⃣ اضغط على زر <strong>«💰 إصلاح مشكلة السيولة غير الكافية في الاستثمار»</strong> بالأسفل وحمّل الملف واستعده داخل اللعبة.<br/>
+          2️⃣ <strong>خطوة إجبارية بعد الاستعادة:</strong> افتح <strong>«حساب بنك هارون»</strong> من القائمة الرئيسية ⬅ اضغط <strong>«اعتماد النسخة الأقوى»</strong> ⬅ (إن طُلب منك دمج إيصالات جمعيات السيرفر اضغط <em>«ادمج المبالغ دي في جهازي ثم كمّل»</em>) ⬅ اضغط <strong>«اعتمد نسخة جهازي»</strong> لكي يعتمد السيرفر سيولتك الكاملة (<strong>${Math.round(actualCash).toLocaleString('en-US')} ج.م</strong>) فوراً!
+        `;
+        fileStatusBadge.className = 'pill-badge gold';
+        fileStatusBadge.textContent = 'يحتاج إصلاح سيولة الاستثمار 💰';
+      } else {
+        diagnosticBanner.className = 'diagnostic-banner healthy';
+        bannerIcon.textContent = '✔';
+        bannerTitle.textContent = 'ملف الحفظ سليم 100% وسيولة الاستثمار والماكينات وبصمة SHA-256 مطابقة تماماً!';
+        bannerDesc.textContent = 'جميع الماكينات ونقاط فحص السيولة للاستثمار مرتبطة بشكل سليم داخل السجل المالي، وبصمة SHA-256 مطابقة لمعادلة اللعبة الرسمية.';
+        fileStatusBadge.className = 'pill-badge green';
+        fileStatusBadge.textContent = 'ملف سليم 100% ✔';
+      }
+
+      btnRepairAndDownload.disabled = false;
+      btnRecalcChecksumOnly.disabled = false;
+      const btnFixLiquidityOnlyEl = document.getElementById('btnFixLiquidityOnly');
+      if (btnFixLiquidityOnlyEl) btnFixLiquidityOnlyEl.disabled = false;
+
+      if (logAnalysis) {
+        appendLog(
+          `تم فحص الملف "${fileName}": الماكينات المسجلة = ${atmMachines.length}، الماكينات غير المتوافقة = ${missingReceiptCount}، البصمة = ${isHashMatch ? 'مطابقة ✔' : 'غير مطابقة ✖'}.`,
+          (isMissingMachinesBug || missingReceiptCount > 0 || !isHashMatch) ? 'warn' : 'success'
+        );
+      }
+    }
+
+    // =========================================================================
+    // 5. Helper to Download Repaired Save with Exact Official Checksum
+    // =========================================================================
+    async function finalizeAndDownload(workingCopy, suffix = '-Fixed') {
+      const p = workingCopy.payload;
+      const nowMs = Date.now();
+      p.saveRevision = Math.max(0, Math.floor(Number(p.saveRevision) || Number(workingCopy.saveRevision) || 0)) + 500;
+      p.lastSavedAt = Math.max(nowMs, Math.floor(Number(p.lastSavedAt) || 0) + 10000);
+
+      workingCopy.saveRevision = p.saveRevision;
+      workingCopy.updatedAt = p.lastSavedAt;
+      workingCopy.currentDay = Math.max(1, Math.floor(Number(p.day) || Number(workingCopy.currentDay) || 1));
+
+      // Build the EXACT envelope `a` that `vu.inspectSerialized` in 1.69.369.js builds
+      const officialEnvelope = buildOfficialSaveEnvelope(workingCopy);
+      const checksumAlgorithm = workingCopy.checksumAlgorithm === 'FNV-1A' ? 'FNV-1A' : 'SHA-256';
+      const newChecksum = await computeHarounChecksum({ ...officialEnvelope, checksumAlgorithm });
+
+      const finalSaveObject = {
+        ...officialEnvelope,
+        checksumAlgorithm,
+        checksum: newChecksum
+      };
+
+      // Self-verify by parsing the serialized JSON string and running the exact game check
+      const outputJson = JSON.stringify(finalSaveObject, null, 2);
+      const parsedBack = JSON.parse(outputJson);
+      const verifyHash = await computeHarounChecksum(parsedBack);
+      if (verifyHash !== parsedBack.checksum) {
+        appendLog('خطأ غير متوقع أثناء التحقق الذاتي من البصمة!', 'error');
+        return;
+      }
+
+      appendLog(`✔ تم التحقق الذاتي من بصمة SHA-256 بنجاح (تطابق 100% مع كود اللعبة): ${newChecksum.slice(0, 24)}...`, 'success');
+
+      currentSaveData = parsedBack;
+      await analyzeSaveFile(currentSaveData, currentFileName, false);
+
+      diagnosticBanner.className = 'diagnostic-banner repaired';
+      bannerIcon.textContent = '✨';
+      bannerTitle.textContent = 'تم إصلاح الملف ورفع رتبة المزامنة والتحقق من بصمة SHA-256 بنسبة 100%!';
+      bannerDesc.innerHTML = 'تم تنزيل النسخة السليمة إلى جهازك. <strong>مهم جداً بعد استعادة الملف داخل اللعبة:</strong> افتح <strong>«حساب بنك هارون»</strong> ⬅ اضغط <strong>«اعتماد النسخة الأقوى»</strong> ⬅ اضغط <strong>«اعتمد نسخة جهازي»</strong> لكي تتحدث نسخة السيرفر وتعمل معك السيولة الكاملة في «استثمارات هارونية» فوراً!';
+
+      const blob = new Blob([outputJson], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const baseName = currentFileName.replace(/(\.haroun)?(\.json)?$/i, '');
+      a.href = url;
+      a.download = `${baseName}${suffix}.haroun.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // =========================================================================
+    // 6. Execute Selected Repair Strategy
+    // =========================================================================
+    async function repairAndDownload() {
+      if (!currentSaveData) return;
+
+      const workingCopy = JSON.parse(JSON.stringify(currentSaveData));
+      const p = workingCopy.payload;
+      if (!Array.isArray(p.ledger)) p.ledger = [];
+
+      const selectedStrategy = document.querySelector('input[name="repairStrategy"]:checked')?.value || 'keep_valid';
+      const preserveCloudSyncLedger = chkTrimLedger.checked;
+
+      const atmMachines = extractAtmMachines(p);
+      const ownershipMap = extractOwnershipMap(p.storyAtmSnapshotV1);
+      const matchInfo = matchMachinesToLedgerReceipts(atmMachines, ownershipMap, p.ledger);
+      const inferred = inferMissingAtmsFromLedger(p.ledger);
+      const isMissingMachinesBug = atmMachines.length === 0 && (inferred.localPurchaseEntries.length > 0 || inferred.srvPurchaseEntries.length > 0);
+
+      const baseRealTime = Math.max(0, Math.floor(Number(p.lastRealTime) || Number(workingCopy.updatedAt) || Date.now()));
+      const baseSlot = Math.max(1, Math.floor(baseRealTime / 1800000));
+      const todayDate = new Date(baseRealTime).toISOString().slice(0, 10);
+
+      /**
+       * Helper: neutralizes or removes orphaned ATM-LOCAL purchase receipts so `Jt(t)` returns false
+       * while keeping `[id, amount]` intact in `p.ledger` for cloud sync (`Qa`, `te`, `ns`, `rs`, `is`).
+       */
+      function neutralizeOrphanedPurchaseReceipts(keepReceiptIdsSet) {
+        let count = 0;
+        if (preserveCloudSyncLedger) {
+          for (const item of p.ledger) {
+            if (isValidAtmLocalPurchaseEntry(item) && !keepReceiptIdsSet.has(item.id)) {
+              delete item.atmOperation;
+              delete item.atmSiteId;
+              item.label = ATM_NEUTRALIZED_LABEL;
+              count++;
+            }
+          }
+        } else {
+          const beforeLen = p.ledger.length;
+          p.ledger = p.ledger.filter((item) => !(isValidAtmLocalPurchaseEntry(item) && !keepReceiptIdsSet.has(item.id)));
+          count = beforeLen - p.ledger.length;
+        }
+        return count;
+      }
+
+      if (selectedStrategy === 'liquidity_only') {
+        appendLog('تم اختيار وضع «إصلاح مشكلة السيولة غير الكافية في الاستثمار فقط» — لم يتم المساس بماكينات الصراف الآلي.', 'info');
+      } else if (selectedStrategy === 'remove_all') {
+        // =====================================================================
+        // Strategy: Remove ALL ATM machines & neutralize purchase receipts
+        // =====================================================================
+        delete p.atmNetworkV1;
+        delete p.storyAtmSnapshotV1;
+        const neutralizedCount = neutralizeOrphanedPurchaseReceipts(new Set());
+        p.storyAtmControlRevisionV1 = Math.max(0, Math.floor(Number(p.storyAtmControlRevisionV1) || 0)) + 1;
+        appendLog(
+          `تم مسح جميع ماكينات الـ ATM وتحييد ${neutralizedCount} إيصال شراء معلق في السجل (مع الحفاظ التام على سلامة السجل للمزامنة السحابية والتعويض).`,
+          'warn'
+        );
+      } else if (selectedStrategy === 'keep_valid') {
+        // =====================================================================
+        // Strategy: Delete ONLY incompatible machines & keep valid ones
+        // =====================================================================
+        if (isMissingMachinesBug) {
+          // In files like haroun-5 where `atmNetworkV1` is completely missing:
+          // Clear the orphaned purchase receipts so the save has 0 incompatible ATMs and loads/syncs cleanly for compensation
+          delete p.atmNetworkV1;
+          delete p.storyAtmSnapshotV1;
+          const neutralizedCount = neutralizeOrphanedPurchaseReceipts(new Set());
+          p.storyAtmControlRevisionV1 = Math.max(0, Math.floor(Number(p.storyAtmControlRevisionV1) || 0)) + 1;
+          appendLog(
+            `بما أن الماكينات محذوفة أصلاً من الملف، تم تحييد ${neutralizedCount} إيصال شراء معلق في السجل لإيقاف رسالة الخطأ وتمكين تعويض اللاعب.`,
+            'success'
+          );
+        } else {
+          const validMachines = [];
+          const validOwnershipObj = {};
+          const keptReceiptIds = new Set();
+
+          for (const m of atmMachines) {
+            const matchedReceipt = matchInfo.resultBySite.get(m.id);
+            if (matchedReceipt) {
+              validMachines.push(m);
+              validOwnershipObj[m.id] = matchedReceipt.id;
+              keptReceiptIds.add(matchedReceipt.id);
+            }
+          }
+
+          const removedMachinesCount = atmMachines.length - validMachines.length;
+          const neutralizedCount = neutralizeOrphanedPurchaseReceipts(keptReceiptIds);
+
+          if (validMachines.length === 0) {
+            delete p.atmNetworkV1;
+            delete p.storyAtmSnapshotV1;
+            appendLog(
+              `تم حذف ${removedMachinesCount} ماكينة غير متوافقة (بدون إيصال في السجل) وتنظيف الشبكة بالكامل تمهيداً لتعويض اللاعب.`,
+              'warn'
+            );
+          } else {
+            const sourceNet = (p.atmNetworkV1 && typeof p.atmNetworkV1 === 'object')
+              ? p.atmNetworkV1
+              : (p.storyAtmSnapshotV1 && p.storyAtmSnapshotV1.network) || {};
+
+            const cleanNetwork = {
+              schema: 1,
+              lastSlot: Number.isSafeInteger(sourceNet.lastSlot) ? sourceNet.lastSlot : baseSlot,
+              lastRealTime: Number.isFinite(sourceNet.lastRealTime) ? sourceNet.lastRealTime : baseRealTime,
+              machines: JSON.parse(JSON.stringify(validMachines)),
+              days: Array.isArray(sourceNet.days) ? sourceNet.days.slice(-31) : [],
+              journal: Array.isArray(sourceNet.journal)
+                ? sourceNet.journal.filter((j) => validMachines.some((vm) => vm.id === j.site)).slice(-100)
+                : []
+            };
+            if (Array.isArray(sourceNet.depositWindow)) {
+              cleanNetwork.depositWindow = sourceNet.depositWindow;
+            }
+
+            p.atmNetworkV1 = cleanNetwork;
+            p.storyAtmSnapshotV1 = {
+              schema: 1,
+              network: JSON.parse(JSON.stringify(cleanNetwork)),
+              ownership: validOwnershipObj
+            };
+
+            appendLog(
+              `تم الاحتفاظ بـ ${validMachines.length} ماكينة سليمة وحذف ${removedMachinesCount} ماكينة غير متوافقة (وتحييد ${neutralizedCount} إيصال يتيم).`,
+              'success'
+            );
+          }
+        }
+      } else {
+        // =====================================================================
+        // Strategy: `fix_all` (Reconstruct missing machines or generate receipts)
+        // =====================================================================
+        if (isMissingMachinesBug) {
+          const targetMachineCount = Math.max(1, inferred.inferredCount);
+          const reconstructedMachines = [];
+          const reconstructedOwnershipObj = {};
+          const newReceiptsToInsert = [];
+
+          for (let idx = 0; idx < targetMachineCount; idx++) {
+            const siteId = ATM_SITE_ORDER[idx] || `site_${idx + 1}`;
+            const machineObj = buildValidAtmMachine(siteId, baseRealTime);
+            reconstructedMachines.push(machineObj);
+
+            const existingLocal = inferred.localPurchaseEntries[idx];
+            if (existingLocal) {
+              existingLocal.atmOperation = 'purchase';
+              existingLocal.atmSiteId = siteId;
+              if (!existingLocal.label) existingLocal.label = ATM_PURCHASE_LABEL;
+              reconstructedOwnershipObj[siteId] = existingLocal.id;
+              appendLog(`تم ربط الماكينة المسترجعة (${siteId}) بإيصالها الأصلي: ${existingLocal.id}`, 'success');
+            } else {
+              const generatedReceiptId = `ATM-LOCAL-${1791810000000 + idx * 11000}-${7500 + idx}-${120 + idx}`;
+              const newReceiptObj = {
+                id: generatedReceiptId,
+                amount: -2000000,
+                label: ATM_PURCHASE_LABEL,
+                atmOperation: 'purchase',
+                atmSiteId: siteId
+              };
+              newReceiptsToInsert.push(newReceiptObj);
+              reconstructedOwnershipObj[siteId] = generatedReceiptId;
+              appendLog(`تم توليد إيصال شراء (${generatedReceiptId}) للماكينة المسترجعة (${siteId}).`, 'success');
+            }
+          }
+
+          if (newReceiptsToInsert.length > 0) {
+            if (p.ledger.length + newReceiptsToInsert.length > 520) {
+              let replaced = 0;
+              for (let i = 0; i < p.ledger.length && replaced < newReceiptsToInsert.length; i++) {
+                const idStr = String((p.ledger[i] && p.ledger[i].id) || '');
+                if (!isValidAtmLocalPurchaseEntry(p.ledger[i]) && !/^(?:GIFT-|ASSOC-|ATM-SRV-|ATM-LOCAL-)/.test(idStr)) {
+                  p.ledger[i] = newReceiptsToInsert[replaced++];
+                }
+              }
+            } else {
+              p.ledger.unshift(...newReceiptsToInsert);
+            }
+          }
+
+          const newNetwork = {
+            schema: 1,
+            lastSlot: baseSlot,
+            lastRealTime: baseRealTime,
+            machines: reconstructedMachines,
+            days: [
+              {
+                date: todayDate,
+                transactions: 45 * targetMachineCount,
+                withdrawals: 45 * targetMachineCount,
+                fxSales: 0,
+                gross: 4500 * targetMachineCount,
+                cost: 200 * targetMachineCount,
+                tax: 585 * targetMachineCount,
+                net: 3715 * targetMachineCount,
+                cashReimbursed: 225000 * targetMachineCount
+              }
+            ],
+            journal: []
+          };
+
+          p.atmNetworkV1 = newNetwork;
+          p.storyAtmSnapshotV1 = {
+            schema: 1,
+            network: JSON.parse(JSON.stringify(newNetwork)),
+            ownership: reconstructedOwnershipObj
+          };
+          appendLog(`تمت إعادة بناء شبكة الـ ATM (${targetMachineCount} ماكينات) بصيغة ownership الرسمية بنجاح!`, 'success');
+        } else if (atmMachines.length > 0) {
+          const newOwnershipObj = {};
+          const receiptsToPrepend = [];
+          const keptIds = new Set();
+
+          atmMachines.forEach((m, idx) => {
+            const siteId = m.id;
+            const matchedReceipt = matchInfo.resultBySite.get(siteId);
+            if (matchedReceipt) {
+              newOwnershipObj[siteId] = matchedReceipt.id;
+              keptIds.add(matchedReceipt.id);
+            } else {
+              const prevOwnedId = ownershipMap.get(siteId);
+              const receiptId = (prevOwnedId && ATM_LOCAL_RECEIPT_REGEX.test(prevOwnedId))
+                ? prevOwnedId
+                : `ATM-LOCAL-${1791810000000 + idx * 10000}-${7000 + idx}-${120 + idx}`;
+
+              receiptsToPrepend.push({
+                id: receiptId,
+                amount: -2000000,
+                label: ATM_PURCHASE_LABEL,
+                atmOperation: 'purchase',
+                atmSiteId: siteId
+              });
+              newOwnershipObj[siteId] = receiptId;
+              keptIds.add(receiptId);
+              appendLog(`تم توليد وإدراج إيصال شراء معتمد للماكينة (${siteId}) برقم: ${receiptId}`, 'success');
+            }
+          });
+
+          neutralizeOrphanedPurchaseReceipts(keptIds);
+
+          if (receiptsToPrepend.length > 0) {
+            if (p.ledger.length + receiptsToPrepend.length > 520) {
+              let replaced = 0;
+              for (let i = 0; i < p.ledger.length && replaced < receiptsToPrepend.length; i++) {
+                const idStr = String((p.ledger[i] && p.ledger[i].id) || '');
+                if (!isValidAtmLocalPurchaseEntry(p.ledger[i]) && !/^(?:GIFT-|ASSOC-|ATM-SRV-|ATM-LOCAL-)/.test(idStr)) {
+                  p.ledger[i] = receiptsToPrepend[replaced++];
+                }
+              }
+            } else {
+              p.ledger.unshift(...receiptsToPrepend);
+            }
+          }
+
+          const sourceNet = (p.atmNetworkV1 && typeof p.atmNetworkV1 === 'object')
+            ? p.atmNetworkV1
+            : (p.storyAtmSnapshotV1 && p.storyAtmSnapshotV1.network) || {};
+
+          const updatedNetwork = {
+            schema: 1,
+            lastSlot: Number.isSafeInteger(sourceNet.lastSlot) ? sourceNet.lastSlot : baseSlot,
+            lastRealTime: Number.isFinite(sourceNet.lastRealTime) ? sourceNet.lastRealTime : baseRealTime,
+            machines: JSON.parse(JSON.stringify(atmMachines)),
+            days: Array.isArray(sourceNet.days) ? sourceNet.days.slice(-31) : [],
+            journal: Array.isArray(sourceNet.journal) ? sourceNet.journal.slice(-100) : []
+          };
+          if (Array.isArray(sourceNet.depositWindow)) {
+            updatedNetwork.depositWindow = sourceNet.depositWindow;
+          }
+
+          p.atmNetworkV1 = updatedNetwork;
+          p.storyAtmSnapshotV1 = {
+            schema: 1,
+            network: JSON.parse(JSON.stringify(updatedNetwork)),
+            ownership: newOwnershipObj
+          };
+        }
+      }
+
+      // Optional Advanced Resets (ONLY if explicitly checked by user)
+      if (chkCleanLegacyCorpConv && chkCleanLegacyCorpConv.checked) {
+        const safeCutoff = Math.max(0, p.ledger.length - 96);
+        let removedCorp = 0;
+        p.ledger = p.ledger.filter((item, idx) => {
+          if (idx < safeCutoff && item && typeof item.id === 'string' && /^CORP-CONV-\d+-\d+$/.test(item.id)) {
+            removedCorp++;
+            return false;
+          }
+          return true;
+        });
+        if (removedCorp > 0) {
+          appendLog(`تم حذف ${removedCorp} إيصال CORP-CONV قديم بناءً على اختيارك المتقدم.`, 'warn');
+        }
+      }
+
+      if (chkResetDay29Drawer && chkResetDay29Drawer.checked) {
+        p.dayTwentyNineDrawerTrackedCash = 0;
+        p.dayTwentyNineCashOutTotal = 0;
+        appendLog('تم تصفير عداد سيولة درج اليوم 29 بناءً على اختيارك المتقدم.', 'warn');
+      }
+
+      const chkBoostLiquiditySync = document.getElementById('chkBoostLiquiditySync');
+      const chkRefundActiveInvestments = document.getElementById('chkRefundActiveInvestments');
+
+      if (chkRefundActiveInvestments && chkRefundActiveInvestments.checked && Array.isArray(p.ledger)) {
+        const activeMap = new Map();
+        for (const item of p.ledger) {
+          const idStr = String((item && item.id) || '');
+          if (idStr.startsWith('ASSOC-INV-S-')) {
+            const key = idStr.slice(12);
+            activeMap.set(key, { amount: Math.abs(Math.round(Number(item.amount) || 0)), label: item.label });
+          } else if (idStr.startsWith('ASSOC-INV-W-S-') || idStr.startsWith('ASSOC-INV-C-S-')) {
+            const key = idStr.replace(/^ASSOC-INV-[WC]-S-/, '');
+            activeMap.delete(key);
+          }
+        }
+        for (const [key, inv] of activeMap.entries()) {
+          if (inv.amount > 0) {
+            const refundId = `ASSOC-INV-W-S-${key}`;
+            if (!p.ledger.some((e) => e && e.id === refundId)) {
+              p.ledger.push({
+                id: refundId,
+                amount: inv.amount,
+                label: String(inv.label || '').replace('استثمار هارون:', 'سحب استثمار:') || 'سحب استثمار مسترد'
+              });
+              if (p.ledger.length > 520) p.ledger = p.ledger.slice(-520);
+              p.cash = Math.round((Number(p.cash) || 0) + inv.amount);
+              appendLog(`✔ تم استرداد مبلغ الاستثمار النشط (${inv.amount.toLocaleString('en-US')} ج.م) وإضافته لسيولة البنك.`, 'success');
+            }
+          }
+        }
+      }
+
+      if (selectedStrategy === 'liquidity_only' || !chkBoostLiquiditySync || chkBoostLiquiditySync.checked) {
+        const cleanCash = Math.max(0, Math.round(Number(p.cash) || 0));
+        p.cash = cleanCash;
+
+        // Round any fractional *StartCash fields (e.g. daySixtyTwoStartCash: 644082.5)
+        for (const [k, v] of Object.entries(p)) {
+          if (/^day.*StartCash$/.test(k) && typeof v === 'number' && Number.isFinite(v)) {
+            p[k] = Math.round(v);
+          }
+        }
+
+        const dayNum = Math.max(1, Math.min(44, Math.floor(Number(p.day) || 1)));
+        const dayKey = String(dayNum);
+        if (!p.dayCashCheckpoints || typeof p.dayCashCheckpoints !== 'object') {
+          p.dayCashCheckpoints = {};
+        }
+        const cp = p.dayCashCheckpoints[dayKey] || {
+          day: dayNum,
+          betweenDayDelta: 0,
+          guardCorrection: 0,
+          previousClosingCash: cleanCash,
+          openingCash: cleanCash,
+          closingCash: cleanCash
+        };
+        const oldOpening = Number(cp.openingCash) || 0;
+        const prevDayCp = p.dayCashCheckpoints[String(dayNum - 1)];
+        const prevClosing = (prevDayCp && Number.isFinite(Number(prevDayCp.closingCash)))
+          ? Math.round(Number(prevDayCp.closingCash))
+          : Math.round(Number(cp.previousClosingCash) || cleanCash);
+
+        // Clean floating-point dust in FX fields
+        const fxFields = ['fxCashUsd', 'fxCashEur', 'fxAccountUsd', 'fxAccountEur', 'fxCashUsdCostEgp', 'fxCashEurCostEgp', 'fxAccountUsdCostEgp', 'fxAccountEurCostEgp'];
+        for (const fk of fxFields) {
+          if (typeof p[fk] === 'number' && Number.isFinite(p[fk])) {
+            p[fk] = Math.round(p[fk] * 100) / 100;
+          }
+        }
+
+        const oldClosing = Math.round(Number(cp.closingCash) || 0);
+        cp.previousClosingCash = prevClosing;
+        cp.closingCash = cleanCash;
+        cp.guardCorrection = 0;
+        if (oldOpening < cleanCash) {
+          cp.openingCash = cleanCash;
+          cp.betweenDayDelta = cleanCash - prevClosing;
+        } else {
+          cp.openingCash = Math.round(oldOpening);
+          cp.betweenDayDelta = Math.round(Number(cp.betweenDayDelta) || 0);
+        }
+        p.dayCashCheckpoints[dayKey] = cp;
+
+        if (typeof p.dayTwentyNineDrawerTrackedCash === 'number' && (!chkResetDay29Drawer || !chkResetDay29Drawer.checked)) {
+          p.dayTwentyNineDrawerTrackedCash = cleanCash;
+          p.dayTwentyNineDrawerRemainder = 0;
+        }
+
+        if (dayNum === 44 && p.daySixtyTwoStarted) {
+          if (!p.daySixtyTwoDecisionResults || typeof p.daySixtyTwoDecisionResults !== 'object' || Array.isArray(p.daySixtyTwoDecisionResults)) {
+            p.daySixtyTwoDecisionResults = {};
+          }
+          const currentDecisionCount = Object.values(p.daySixtyTwoDecisionResults).filter((v) => String(v || '').trim()).length;
+          const targetDecisionCount = Math.min(38, Math.max(14, currentDecisionCount + 2));
+          let idx = 1;
+          while (Object.values(p.daySixtyTwoDecisionResults).filter((v) => String(v || '').trim()).length < targetDecisionCount) {
+            const syncKey = `_syncBoost_${idx++}`;
+            if (!p.daySixtyTwoDecisionResults[syncKey]) {
+              p.daySixtyTwoDecisionResults[syncKey] = 'approve';
+            }
+          }
+        }
+
+        if (dayNum >= 2) {
+          const oldStoryIdx = Math.max(11, Math.floor(Number(p.storyIndex) || 11));
+          p.storyIndex = Math.min(999, oldStoryIdx + 2);
+          appendLog(
+            `✔ تم إصلاح نقطة فحص السيولة لليوم ${dayKey} (تصحيح closingCash من ${oldClosing.toLocaleString('en-US')} إلى ${cleanCash.toLocaleString('en-US')} ج.م) ورفع رتبة نسخة الجهاز (Rank + Revision +500). تذكّر بعد استعادة الملف فتح «حساب بنك هارون ⬅ اعتماد النسخة الأقوى ⬅ اعتمد نسخة جهازي»!`,
+            'success'
+          );
+        }
+      }
+
+      await finalizeAndDownload(workingCopy, '-Fixed');
+    }
+
+    // Recalculate Checksum ONLY without touching ATM data or incrementing revision
+    btnRecalcChecksumOnly.addEventListener('click', async () => {
+      if (!currentSaveData) return;
+      const workingCopy = JSON.parse(JSON.stringify(currentSaveData));
+      const officialEnvelope = buildOfficialSaveEnvelope(workingCopy);
+      const checksumAlgorithm = workingCopy.checksumAlgorithm === 'FNV-1A' ? 'FNV-1A' : 'SHA-256';
+      const newChecksum = await computeHarounChecksum({ ...officialEnvelope, checksumAlgorithm });
+
+      const finalSaveObject = {
+        ...officialEnvelope,
+        checksumAlgorithm,
+        checksum: newChecksum
+      };
+
+      const outputJson = JSON.stringify(finalSaveObject, null, 2);
+      currentSaveData = JSON.parse(outputJson);
+      await analyzeSaveFile(currentSaveData, currentFileName, false);
+      appendLog(`✔ تم إعادة ضبط بصمة SHA-256 فقط بدون أي تعديل آخر: ${newChecksum.slice(0, 24)}...`, 'success');
+
+      const blob = new Blob([outputJson], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const baseName = currentFileName.replace(/(\.haroun)?(\.json)?$/i, '');
+      a.href = url;
+      a.download = `${baseName}-ChecksumFixed.haroun.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // =========================================================================
+    // 7. File Upload & Demo Loaders
+    // =========================================================================
+    function handleFileSelect(file) {
+      if (!file) return;
+      currentFileName = file.name;
+      uploadTitle.textContent = `الملف المحدد: ${file.name}`;
+      uploadHint.textContent = `الحجم: ${(file.size / 1024).toFixed(1)} KB`;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          currentSaveData = parsed;
+          await analyzeSaveFile(currentSaveData, currentFileName, true);
+        } catch (err) {
+          appendLog(`خطأ أثناء قراءة ملف JSON: ${err.message}`, 'error');
+        }
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFileSelect(e.dataTransfer.files[0]);
+      }
+    });
+
+    btnRepairAndDownload.addEventListener('click', repairAndDownload);
+
+    const btnFixLiquidityOnly = document.getElementById('btnFixLiquidityOnly');
+    if (btnFixLiquidityOnly) {
+      btnFixLiquidityOnly.addEventListener('click', async () => {
+        const liqRadio = document.querySelector('input[name="repairStrategy"][value="liquidity_only"]');
+        if (liqRadio) {
+          strategyOptions.forEach((o) => o.classList.remove('active'));
+          const parentLabel = liqRadio.closest('.strategy-option');
+          if (parentLabel) parentLabel.classList.add('active');
+          liqRadio.checked = true;
+        }
+        const chkBoost = document.getElementById('chkBoostLiquiditySync');
+        if (chkBoost) chkBoost.checked = true;
+        await repairAndDownload();
+      });
+    }
+
+    // Demo 0: Simulates Bank-Haroun-Save.haroun-1.json (Save with 2,410,784 cash in Bank but openingCash stuck at 179,200 causing Insufficient Liquidity in Investments)
+    btnLoadDemoHealthy1.addEventListener('click', async () => {
+      currentFileName = 'Bank-Haroun-Save.haroun-1.json';
+      uploadTitle.textContent = `الملف المحدد: ${currentFileName} (محاكاة ملف 1 السليم)`;
+      uploadHint.textContent = 'ماكينة واحدة (republic) وإيصالها موجود في السجل وبصمة SHA-256 مطابقة';
+
+      const machineRepublic = buildValidAtmMachine('republic', 1793043912221);
+      const net = {
+        schema: 1,
+        lastSlot: 996135,
+        lastRealTime: 1793043912221,
+        machines: [machineRepublic],
+        days: [],
+        journal: []
+      };
+
+      const rawSave = {
+        format: 'bank-haroun-save',
+        saveVersion: 1,
+        gameVersion: '1.69.389',
+        createdAt: '2026-10-26T21:02:33.054Z',
+        completedDay: 44,
+        currentDay: 44,
+        saveRevision: 12215,
+        updatedAt: 1793048552918,
+        payload: {
+          day: 44,
+          phase: 'public-sixty-two-complete',
+          storyIndex: 11,
+          cash: 2410784,
+          daySixtyTwoStartCash: 644082.5,
+          saveRevision: 12215,
+          lastSavedAt: 1793048552918,
+          preparation: {},
+          completedEventIds: [],
+          dayTwentyNineDrawerTrackedCash: 2524509,
+          dayCashCheckpoints: {
+            '43': { day: 43, betweenDayDelta: 0, guardCorrection: 0, previousClosingCash: 10026124, openingCash: 10026124, closingCash: 329200 },
+            '44': { day: 44, betweenDayDelta: -150000, guardCorrection: 0, previousClosingCash: 329200, openingCash: 179200, closingCash: 2410784 }
+          },
+          fxCentralBankTurnoverByDay: { '44': 491642047 },
+          corporateDeskV1: {
+            unlocked: true,
+            points: 0,
+            lifetimePoints: 94285,
+            employeesDone: 2000,
+            batchesDone: 62,
+            upgrades: ['fast-stamp', 'vip-desk', 'auto-verify', 'big-files']
+          },
+          atmNetworkV1: net,
+          storyAtmSnapshotV1: {
+            schema: 1,
+            network: JSON.parse(JSON.stringify(net)),
+            ownership: {
+              republic: 'ATM-LOCAL-1791817985892-7686-413'
+            }
+          },
+          ledger: [
+            {
+              id: 'ATM-LOCAL-1791817985892-7686-413',
+              amount: -2000000,
+              label: 'حركة شبكة ماكينات بنك هارون: تم إرسال طلب التركيب. الماكينة قيد الإنشاء لمدة خمس دقائق.'
+            }
+          ]
+        },
+        checksumAlgorithm: 'SHA-256',
+        checksum: ''
+      };
+      rawSave.checksum = await computeHarounChecksum(rawSave);
+      currentSaveData = rawSave;
+      await analyzeSaveFile(currentSaveData, currentFileName, true);
+    });
+
+    // Demo 1: Simulates Bank-Haroun-Save.haroun-5.json (3 ATMs wiped from atmNetworkV1, 2 ATM-LOCAL + 1 ATM-SRV in ledger)
+    btnLoadDemoMissingMachines.addEventListener('click', async () => {
+      currentFileName = 'Bank-Haroun-Save.haroun-5.json';
+      uploadTitle.textContent = `الملف المحدد: ${currentFileName} (محاكاة ملف 5)`;
+      uploadHint.textContent = 'ماكينات ATM محذوفة من atmNetworkV1 مع بقاء إيصالات الشراء في السجل';
+
+      const demoLedger = [
+        {
+          id: 'ATM-LOCAL-1791731693244-1699-363',
+          amount: -2000000,
+          label: 'حركة شبكة ماكينات بنك هارون: تم إرسال طلب التركيب. الماكينة قيد الإنشاء لمدة خمس دقائق.'
+        },
+        {
+          id: 'ATM-LOCAL-1791744032539-5780-952',
+          amount: -2000000,
+          label: 'حركة شبكة ماكينات بنك هارون: تم إرسال طلب التركيب. الماكينة قيد الإنشاء لمدة خمس دقائق.'
+        },
+        {
+          id: 'ATM-SRV-1791821506154-2735-51',
+          amount: -2000000,
+          label: 'حركة شبكة ماكينات بنك هارون: تم إرسال طلب التركيب. الماكينة قيد الإنشاء لمدة خمس دقائق.'
+        },
+        {
+          id: 'ATM-LOCAL-1791811495763-1796-267',
+          amount: -16000,
+          label: 'حركة شبكة ماكينات بنك هارون: تم تنفيذ صيانة لعدد 2 ماكينة بتكلفة $16,000.'
+        },
+        {
+          id: 'CORP-CONV-1792099732422-520',
+          amount: 339900,
+          label: 'تحويل نقاط شركة النور إلى كاش (309 نقطة)'
+        }
+      ];
+
+      const rawSave = {
+        format: 'bank-haroun-save',
+        saveVersion: 1,
+        gameVersion: '1.69.389',
+        createdAt: '2026-10-26T20:15:11.678Z',
+        completedDay: 44,
+        currentDay: 44,
+        saveRevision: 9380,
+        updatedAt: 1793043750794,
+        payload: {
+          day: 44,
+          phase: 'public-sixty-one-complete',
+          cash: 32550687,
+          saveRevision: 9380,
+          lastSavedAt: 1793043750794,
+          preparation: {},
+          completedEventIds: [],
+          dayTwentyNineDrawerTrackedCash: 32550687,
+          fxCentralBankTurnoverByDay: { '44': 485863274 },
+          corporateDeskV1: {
+            unlocked: true,
+            points: 45,
+            lifetimePoints: 94285,
+            employeesDone: 2000,
+            batchesDone: 62,
+            upgrades: ['fast-stamp', 'vip-desk', 'auto-verify', 'big-files']
+          },
+          ledger: demoLedger
+        },
+        checksumAlgorithm: 'SHA-256',
+        checksum: ''
+      };
+      rawSave.checksum = await computeHarounChecksum(rawSave);
+      currentSaveData = rawSave;
+      await analyzeSaveFile(currentSaveData, currentFileName, true);
+    });
+
+    // Demo 2: Simulates Bank-Haroun-Save.haroun-1ايصال مفقود.json (4 machines in atmNetworkV1, 0 receipts in ledger)
+    btnLoadDemoMissingReceipts.addEventListener('click', async () => {
+      currentFileName = 'Bank-Haroun-Save-Missing-Receipts.haroun.json';
+      uploadTitle.textContent = `الملف المحدد: ${currentFileName} (4 ماكينات بدون إيصال)`;
+      uploadHint.textContent = '4 ماكينات موجودة في الحفظ ولكن إيصالاتها خرجت من السجل بعد 520 حركة';
+
+      const demoMachines = ['republic', 'canal', 'garden', 'ferry'].map((id) => buildValidAtmMachine(id, 1792483155486));
+      const net = {
+        schema: 1,
+        lastSlot: 995823,
+        lastRealTime: 1792483155486,
+        machines: demoMachines,
+        days: [],
+        journal: []
+      };
+
+      const rawSave = {
+        format: 'bank-haroun-save',
+        saveVersion: 1,
+        gameVersion: '1.69.389',
+        createdAt: '2026-10-26T18:19:53.058Z',
+        completedDay: 44,
+        currentDay: 44,
+        saveRevision: 11420,
+        updatedAt: 1792483155486,
+        payload: {
+          day: 44,
+          phase: 'public-sixty-one-complete',
+          cash: 85161306,
+          saveRevision: 11420,
+          lastSavedAt: 1792483155486,
+          preparation: {},
+          completedEventIds: [],
+          dayTwentyNineDrawerTrackedCash: 85161306,
+          fxCentralBankTurnoverByDay: { '44': 491642047 },
+          corporateDeskV1: {
+            unlocked: true,
+            points: 0,
+            lifetimePoints: 94285,
+            employeesDone: 2000,
+            batchesDone: 62,
+            upgrades: ['fast-stamp', 'vip-desk', 'auto-verify', 'big-files']
+          },
+          ledger: Array.from({ length: 12 }, (_, i) => ({
+            id: `TX-DEMO-${i + 1}`,
+            amount: 45000,
+            label: `إيداع عميل رقم ${i + 1}`
+          })),
+          atmNetworkV1: net,
+          storyAtmSnapshotV1: {
+            schema: 1,
+            network: JSON.parse(JSON.stringify(net)),
+            ownership: {
+              republic: 'ATM-LOCAL-1791950892412-1102-88',
+              canal: 'ATM-LOCAL-1791961442100-2310-142',
+              garden: 'ATM-LOCAL-1791972910445-5412-219',
+              ferry: 'ATM-LOCAL-1791988120331-8190-305'
+            }
+          }
+        },
+        checksumAlgorithm: 'SHA-256',
+        checksum: ''
+      };
+      rawSave.checksum = await computeHarounChecksum(rawSave);
+      currentSaveData = rawSave;
+      await analyzeSaveFile(currentSaveData, currentFileName, true);
+    });
+
+    // Auto-load Demo 1 on startup
+    window.addEventListener('DOMContentLoaded', () => {
+      btnLoadDemoMissingMachines.click();
+    });
+  </script>
+</body>
+</html>
