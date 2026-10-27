@@ -164,15 +164,38 @@ function applyDeepLiquidityFix(p, options = { refundActiveInvestments: false }) 
   }
   p.cash = cleanCash;
 
-  // 3. تقريب أرصدة بداية الأيام من أي كسور عشرية (مثل daySixtyTwoStartCash: 1564167.5)
+  // 3. تقريب أرصدة بداية الأيام وأرباح العملات وسجل الحركات من أي كسور عشرية
   for (const [k, v] of Object.entries(p)) {
-    if (/^day.*StartCash$/.test(k) && typeof v === "number" && Number.isFinite(v)) {
+    if ((/^day.*StartCash$/.test(k) || k === "dayFortyFourFxRealizedProfit") && typeof v === "number" && Number.isFinite(v)) {
       const rounded = Math.round(v);
       if (rounded !== v) {
         p[k] = rounded;
         logs.push(`إزالة الكسر العشري من ${k} (${v} ⬅ ${rounded.toLocaleString("en-US")}).`);
       }
     }
+  }
+  if (p.fxCentralBankRealizedProfitByDay && typeof p.fxCentralBankRealizedProfitByDay === "object") {
+    for (const [dk, dv] of Object.entries(p.fxCentralBankRealizedProfitByDay)) {
+      if (typeof dv === "number" && Number.isFinite(dv)) {
+        p.fxCentralBankRealizedProfitByDay[dk] = Math.round(dv);
+      }
+    }
+  }
+  if (Array.isArray(p.ledger)) {
+    let roundedLedgerItems = 0;
+    for (const item of p.ledger) {
+      if (item && typeof item.amount === "number" && !Number.isInteger(item.amount)) {
+        item.amount = Math.round(item.amount);
+        roundedLedgerItems++;
+      }
+    }
+    if (roundedLedgerItems > 0) {
+      logs.push(`تقريب الكسور العشرية في ${roundedLedgerItems} حركة داخل السجل المالي (ledger).`);
+    }
+  }
+  if (p.atmNetworkV1 && Array.isArray(p.atmNetworkV1.machines) && p.atmCount !== p.atmNetworkV1.machines.length) {
+    p.atmCount = p.atmNetworkV1.machines.length;
+    logs.push(`مطابقة عداد ماكينات الـ ATM (atmCount) إلى ${p.atmCount} ماكينة.`);
   }
 
   // 4. تنظيف الكسور العشرية العالقة في أرصدة وتكلفة العملات الأجنبية (FX Floating-Point Dust)
@@ -378,7 +401,7 @@ function inspectSaveFile(rawText) {
 
   const isOpeningLow = checkpointOpeningCash < currentCash - 1;
   const isClosingDesynced = Math.round(checkpointClosingCash) !== Math.round(currentCash);
-  const hasFractionalStartCash = typeof p.daySixtyTwoStartCash === "number" && !Number.isInteger(p.daySixtyTwoStartCash);
+  const hasFractionalStartCash = (typeof p.daySixtyTwoStartCash === "number" && !Number.isInteger(p.daySixtyTwoStartCash)) || !Number.isInteger(currentCash);
   const hasCheckpointGap = isOpeningLow || isClosingDesynced || hasFractionalStartCash;
   const liquiditySyncWarning = (
     hasCheckpointGap ||
@@ -510,7 +533,13 @@ function repairSaveFile(rawText, mode = "full") {
         if (keptIds.has(k)) newOwnership[k] = v;
       }
       const validOwnedReceipts = new Set(Object.values(newOwnership));
-      p.ledger = p.ledger.filter(e => !isAtmPurchaseEntry(e) || validOwnedReceipts.has(e.id));
+      for (const e of p.ledger) {
+        if (isAtmPurchaseEntry(e) && !validOwnedReceipts.has(e.id)) {
+          delete e.atmOperation;
+          delete e.atmSiteId;
+          e.label = "حركة شبكة ماكينات بنك هارون: تسوية إغلاق موقع ماكينة صراف آلي.";
+        }
+      }
 
       net.machines = keptMachines;
       p.atmNetworkV1 = JSON.parse(JSON.stringify(net));
@@ -538,9 +567,19 @@ function repairSaveFile(rawText, mode = "full") {
     };
     p.atmCount = 0;
     p.atmCash = 0;
-    const beforeLedger = p.ledger.length;
-    p.ledger = p.ledger.filter(e => !isAtmPurchaseEntry(e));
-    actionsTaken.push(`مسح جميع ماكينات الصراف الآلي بالكامل وإزالة ${beforeLedger - p.ledger.length} إيصال شراء قديم لتجهيز الحساب للتعويض.`);
+    let neutralized = 0;
+    for (const e of p.ledger) {
+      if (isAtmPurchaseEntry(e)) {
+        delete e.atmOperation;
+        delete e.atmSiteId;
+        e.label = "حركة شبكة ماكينات بنك هارون: تسوية إغلاق موقع ماكينة صراف آلي.";
+        neutralized++;
+      }
+    }
+    delete p.atmNetworkV1;
+    delete p.storyAtmSnapshotV1;
+    p.storyAtmControlRevisionV1 = Math.max(0, Math.floor(Number(p.storyAtmControlRevisionV1) || 0)) + 1;
+    actionsTaken.push(`مسح جميع ماكينات الصراف الآلي بالكامل وتحييد ${neutralized} إيصال شراء قديم لتجهيز الحساب للتعويض بأمان مع المزامنة.`);
   }
 
   // 2. إصلاح مشكلة «السيولة غير الكافية» في الاستثمار والمزامنة (يعمل في جميع الأوضاع ما عدا checksum_only)
